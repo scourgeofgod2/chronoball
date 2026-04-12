@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChronoBall</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════
+       CONFIG SCREEN
+  ══════════════════════════════ -->
+  <div id="screen-config" class="screen active">
+    <div class="cfg-wrap">
+
+      <header class="cfg-hero">
+        <div class="cfg-logo-glow"></div>
+        <div class="cfg-logo-icon">⚽</div>
+        <h1 class="cfg-logo-text">ChronoBall</h1>
+        <p class="cfg-subtitle">Kronometreye dayalı futbol simülasyonu</p>
+      </header>
+
+      <div class="cfg-grid">
+
+        <!-- TAKIM 0 -->
+        <div class="glass-card cfg-team" id="team0-config">
+          <div class="cfg-team-header home-accent">
+            <span class="cfg-team-badge home-badge">Ev Sahibi</span>
+            <input type="text" id="team0-name" class="input cfg-team-name"
+                   placeholder="Takım adını gir…" maxlength="20" />
+            <div class="cfg-meta-row">
+              <div class="cfg-digit-group">
+                <label class="field-label">Gol Rakamı</label>
+                <select id="team0-goal-digit" class="select select-sm">
+                  <option value="7" selected>7</option>
+                  <option value="0">0</option><option value="1">1</option>
+                  <option value="2">2</option><option value="3">3</option>
+                  <option value="4">4</option><option value="5">5</option>
+                  <option value="6">6</option><option value="8">8</option>
+                  <option value="9">9</option>
+                </select>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="randomFill(0)">
+                🎲 Rastgele
+              </button>
+            </div>
+          </div>
+          <div class="cfg-players" id="team0-players"></div>
+        </div>
+
+        <!-- VS -->
+        <div class="cfg-vs">
+          <div class="vs-pill">VS</div>
+        </div>
+
+        <!-- TAKIM 1 -->
+        <div class="glass-card cfg-team" id="team1-config">
+          <div class="cfg-team-header away-accent">
+            <span class="cfg-team-badge away-badge">Deplasman</span>
+            <input type="text" id="team1-name" class="input cfg-team-name"
+                   placeholder="Takım adını gir…" maxlength="20" />
+            <div class="cfg-meta-row">
+              <div class="cfg-digit-group">
+                <label class="field-label">Gol Rakamı</label>
+                <select id="team1-goal-digit" class="select select-sm">
+                  <option value="7" selected>7</option>
+                  <option value="0">0</option><option value="1">1</option>
+                  <option value="2">2</option><option value="3">3</option>
+                  <option value="4">4</option><option value="5">5</option>
+                  <option value="6">6</option><option value="8">8</option>
+                  <option value="9">9</option>
+                </select>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="randomFill(1)">
+                🎲 Rastgele
+              </button>
+            </div>
+          </div>
+          <div class="cfg-players" id="team1-players"></div>
+        </div>
+
+      </div><!-- /cfg-grid -->
+
+      <button class="btn btn-cta" onclick="startMatch()">
+        <span>⚽</span> Maçı Başlat
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       MATCH SCREEN
+  ══════════════════════════════ -->
+  <div id="screen-match" class="screen">
+
+    <!-- Top Bar: Skor -->
+    <header class="match-topbar">
+      <div class="match-team-block home-side">
+        <span class="match-team-name" id="match-team0-name">Ev Sahibi</span>
+        <span class="match-score home-score" id="score0">0</span>
+      </div>
+
+      <div class="match-center-info">
+        <div class="match-clock-badge" id="match-minute">1. Dakika</div>
+        <div class="match-half-label" id="match-half">1. Yarı</div>
+        <div class="active-team-pill" id="active-team-bar">
+          Sıra: <strong id="active-team-name">—</strong>
+        </div>
+      </div>
+
+      <div class="match-team-block away-side">
+        <span class="match-score away-score" id="score1">0</span>
+        <span class="match-team-name" id="match-team1-name">Deplasman</span>
+      </div>
+    </header>
+
+    <!-- 3 Sütun Alan -->
+    <div class="match-body">
+
+      <!-- SOL: Ev Sahibi Oyuncular -->
+      <aside class="side-panel home-panel">
+        <div class="side-panel-title home-title" id="panel-title-0">Ev Sahibi</div>
+        <div class="players-list" id="players-status-0"></div>
+      </aside>
+
+      <!-- ORTA: Oyun Alanı -->
+      <main class="center-col">
+
+        <!-- Kronometre -->
+        <div class="glass-card chrono-card">
+          <div class="chrono-display" id="chrono-display">00.00</div>
+          <p class="chrono-hint" id="chrono-hint">Başlatmak için butona bas</p>
+          <button class="btn btn-pull" id="btn-pull" onclick="handlePull()">
+            <span id="btn-pull-text">⚽&nbsp;&nbsp;ÇEK!</span>
+          </button>
+        </div>
+
+        <!-- Aksiyon Paneli -->
+        <div class="glass-card action-card" id="action-panel" style="display:none;">
+          <div class="action-result" id="action-result"></div>
+          <div class="action-subtitle" id="action-player"></div>
+          <button class="btn btn-outline" id="btn-continue" onclick="continueAction()">
+            ▶&nbsp;Devam
+          </button>
+        </div>
+
+        <!-- Maç Logu -->
+        <div class="glass-card log-card">
+          <div class="log-card-header">📋 Maç Olayları</div>
+          <div class="match-log" id="match-log"></div>
+        </div>
+
+      </main>
+
+      <!-- SAĞ: Deplasman Oyuncular -->
+      <aside class="side-panel away-panel">
+        <div class="side-panel-title away-title" id="panel-title-1">Deplasman</div>
+        <div class="players-list" id="players-status-1"></div>
+      </aside>
+
+    </div><!-- /match-body -->
+
+    <!-- Mobil Panel Switcher -->
+    <nav class="mobile-tabs">
+      <button class="mobile-tab active" data-tab="home" onclick="switchTab('home', this)">🏠 Ev</button>
+      <button class="mobile-tab" data-tab="center" onclick="switchTab('center', this)">⚽ Oyun</button>
+      <button class="mobile-tab" data-tab="away" onclick="switchTab('away', this)">✈️ Dep</button>
+    </nav>
+
+  </div><!-- /screen-match -->
+
+  <!-- ══════════════════════════════
+       HALFTIME SCREEN
+  ══════════════════════════════ -->
+  <div id="screen-halftime" class="screen result-screen">
+    <div class="result-wrap">
+
+      <span class="result-badge warning-badge">⏸ DEVRE ARASI</span>
+      <h2 class="result-heading">1. Yarı Sona Erdi</h2>
+
+      <div class="result-score-row">
+        <span class="result-team" id="ht-team0-name">Ev Sahibi</span>
+        <div class="result-score-box home-score-box" id="ht-score0">0</div>
+        <span class="result-dash">—</span>
+        <div class="result-score-box away-score-box" id="ht-score1">0</div>
+        <span class="result-team" id="ht-team1-name">Deplasman</span>
+      </div>
+
+      <div class="glass-card stats-card">
+        <div class="stats-card-title">1. Yarı Özeti</div>
+        <div class="summary-log" id="halftime-log"></div>
+      </div>
+
+      <button class="btn btn-cta" onclick="startSecondHalf()">▶ 2. Yarıya Devam</button>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       FULLTIME SCREEN
+  ══════════════════════════════ -->
+  <div id="screen-fulltime" class="screen result-screen">
+    <div class="result-wrap">
+
+      <span class="result-badge success-badge">🏆 MAÇ SONA ERDİ</span>
+      <h2 class="result-heading" id="fulltime-result-text">Beraberlik!</h2>
+
+      <div class="result-score-row">
+        <span class="result-team" id="ft-team0-name">Ev Sahibi</span>
+        <div class="result-score-box home-score-box" id="ft-score0">0</div>
+        <span class="result-dash">—</span>
+        <div class="result-score-box away-score-box" id="ft-score1">0</div>
+        <span class="result-team" id="ft-team1-name">Deplasman</span>
+      </div>
+
+      <div class="glass-card stats-card">
+        <div class="stats-card-title">📊 İstatistikler</div>
+        <div id="fulltime-stats-content"></div>
+      </div>
+
+      <div class="glass-card stats-card">
+        <div class="stats-card-title">📋 Önemli Olaylar</div>
+        <div class="summary-log" id="fulltime-log"></div>
+      </div>
+
+      <button class="btn btn-cta" onclick="newMatch()">🔄 Yeni Maç</button>
+
+    </div>
+  </div>
+
+  <script>
+    // Mobil panel geçişi
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.mobile-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const body = document.querySelector('.match-body');
+      body.setAttribute('data-active-tab', tab);
+    }
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
