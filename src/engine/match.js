@@ -1,6 +1,6 @@
 // ============================================================
 //  ChronoBall — Maç Akış Motoru
-//  Yeni: freekick-near / freekick-far + gol animasyonu
+//  v3: Bilateral taktik, defans kalitesi, yorumcu sistemi
 // ============================================================
 
 import { getState }    from '../state/gameState.js'
@@ -11,6 +11,7 @@ import {
   calcFreekickFarMult,
   calcPenaltyMult,
   goalDigitsFromMult,
+  pickCommentary,
 } from './actions.js'
 import { calcMinute }  from './chrono.js'
 import { sounds }      from '../utils/audio.js'
@@ -81,13 +82,16 @@ function _processPlayer(digit) {
 
 // ── AŞAMA 2: Aksiyon ────────────────────────────────────────
 function _processAction(digit) {
-  const state   = getState()
-  const teamIdx = state.activeTeam
-  const action  = ACTIONS[digit]
+  const state      = getState()
+  const teamIdx    = state.activeTeam
+  const defTeamIdx = 1 - teamIdx
+  const action     = ACTIONS[digit]
 
   selectedAction = { digit, ...action }
   const pLabel   = `${_posBadge(selectedPlayer.pos)} ${selectedPlayer.name} (#${selectedPlayer.digit})`
-  const tactic   = state.tactics[teamIdx] || 'balance'
+  const atkTactic = state.tactics[teamIdx]        || 'balance'
+  const defTactic = state.tactics[defTeamIdx]     || 'balance'
+  const defTeam   = state.teams[defTeamIdx]
 
   switch (action.type) {
     case 'gol':
@@ -102,19 +106,21 @@ function _processAction(digit) {
       _giveRedCard(teamIdx, selectedPlayer.digit)
       break
 
-    case 'faul':
+    case 'faul': {
       state.stats[teamIdx].fouls++
       sounds.card()
-      showAction(`🦵 Faul`, `${currentMinute}. dakika`, 'normal', true, pLabel)
+      const foulComment = pickCommentary('foul')
+      showAction(`🦵 Faul`, `${currentMinute}' — ${foulComment}`, 'normal', true, pLabel)
       addLog(currentMinute, teamIdx, selectedPlayer.digit, 'normal', `Faul — ${selectedPlayer.name}`)
       pullPhase = 'waiting'
       setChronoHint('waiting')
       break
+    }
 
     case 'penalty': {
       sounds.click()
       state.stats[teamIdx].penalties++
-      const pm = calcPenaltyMult(selectedPlayer.pos, tactic)
+      const pm = calcPenaltyMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
       showAction(
         `🎯 Penaltı!`,
         `Gol şansı: ${_chanceLabel(pm)} — Tekrar çek!`,
@@ -127,7 +133,7 @@ function _processAction(digit) {
 
     case 'freekick-near': {
       sounds.click()
-      const nm = calcFreekickNearMult(selectedPlayer.pos, tactic)
+      const nm = calcFreekickNearMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
       showAction(
         `🌀 Yakın Frikik!`,
         `Tehlikeli bölge — Gol şansı: ${_chanceLabel(nm)} — Tekrar çek!`,
@@ -141,7 +147,7 @@ function _processAction(digit) {
 
     case 'freekick-far': {
       sounds.click()
-      const fm = calcFreekickFarMult(selectedPlayer.pos, tactic)
+      const fm = calcFreekickFarMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
       showAction(
         `🚩 Uzak Frikik`,
         `Gol şansı: ${_chanceLabel(fm)} — Tekrar çek!`,
@@ -155,7 +161,7 @@ function _processAction(digit) {
 
     case 'freekick': {
       sounds.click()
-      const gm = calcGoalMult(selectedPlayer.pos, tactic)
+      const gm = calcGoalMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
       showAction(
         `⚡ Serbest Vuruş!`,
         `Gol şansı: ${_chanceLabel(gm)} — Tekrar çek!`,
@@ -169,7 +175,7 @@ function _processAction(digit) {
     case 'corner': {
       sounds.click()
       state.stats[teamIdx].corners++
-      const cm = calcGoalMult(selectedPlayer.pos, tactic)
+      const cm = calcGoalMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
       showAction(
         `📐 Korner!`,
         `Gol şansı: ${_chanceLabel(cm)} — Tekrar çek!`,
@@ -177,6 +183,17 @@ function _processAction(digit) {
       )
       pullPhase = 'third'
       setChronoHint('third')
+      break
+    }
+
+    case 'normal': {
+      // Ofsayt
+      const offComment = pickCommentary('offside')
+      showAction(`${action.icon} ${action.name}`, `${currentMinute}' — ${offComment}`, 'normal', true, pLabel)
+      addLog(currentMinute, teamIdx, selectedPlayer.digit, 'normal',
+             `${action.name} — ${selectedPlayer.name}`)
+      pullPhase = 'waiting'
+      setChronoHint('waiting')
       break
     }
 
@@ -191,49 +208,59 @@ function _processAction(digit) {
 
 // ── AŞAMA 3: Sonuç ──────────────────────────────────────────
 function _processThird(digit) {
-  const state   = getState()
-  const teamIdx = state.activeTeam
-  const team    = state.teams[teamIdx]
-  const aType   = selectedAction.type
-  const tactic  = state.tactics[teamIdx] || 'balance'
-  const pLabel  = `${_posBadge(selectedPlayer.pos)} ${selectedPlayer.name} (#${selectedPlayer.digit})`
+  const state      = getState()
+  const teamIdx    = state.activeTeam
+  const defTeamIdx = 1 - teamIdx
+  const team       = state.teams[teamIdx]
+  const aType      = selectedAction.type
+  const atkTactic  = state.tactics[teamIdx]    || 'balance'
+  const defTactic  = state.tactics[defTeamIdx] || 'balance'
+  const defTeam    = state.teams[defTeamIdx]
+  const pLabel     = `${_posBadge(selectedPlayer.pos)} ${selectedPlayer.name} (#${selectedPlayer.digit})`
 
-  let mult, isGoal, label, icon
+  let mult, isGoal, label, icon, commentKey
 
   if (aType === 'penalty') {
-    mult   = calcPenaltyMult(selectedPlayer.pos, tactic)
-    isGoal = goalDigitsFromMult(mult).includes(digit)
-    label  = 'Penaltıdan'
-    icon   = '🎯'
+    mult       = calcPenaltyMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+    isGoal     = goalDigitsFromMult(mult).includes(digit)
+    label      = 'Penaltıdan'
+    icon       = '🎯'
+    commentKey = isGoal ? 'goal_penalty' : 'miss_penalty'
   } else if (aType === 'freekick-near') {
-    mult   = calcFreekickNearMult(selectedPlayer.pos, tactic)
-    isGoal = goalDigitsFromMult(mult).includes(digit)
-    label  = 'Yakın Frikikten'
-    icon   = '🌀'
+    mult       = calcFreekickNearMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+    isGoal     = goalDigitsFromMult(mult).includes(digit)
+    label      = 'Yakın Frikikten'
+    icon       = '🌀'
+    commentKey = isGoal ? 'goal_freekick' : 'miss_freekick'
   } else if (aType === 'freekick-far') {
-    mult   = calcFreekickFarMult(selectedPlayer.pos, tactic)
-    isGoal = goalDigitsFromMult(mult).includes(digit)
-    label  = 'Uzak Frikikten'
-    icon   = '🚩'
+    mult       = calcFreekickFarMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+    isGoal     = goalDigitsFromMult(mult).includes(digit)
+    label      = 'Uzak Frikikten'
+    icon       = '🚩'
+    commentKey = isGoal ? 'goal_freekick' : 'miss_freekick'
   } else if (aType === 'freekick') {
-    mult   = calcGoalMult(selectedPlayer.pos, tactic)
-    isGoal = goalDigitsFromMult(mult).includes(digit)
-    label  = 'Serbest Vuruştan'
-    icon   = '⚡'
+    mult       = calcGoalMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+    isGoal     = goalDigitsFromMult(mult).includes(digit)
+    label      = 'Serbest Vuruştan'
+    icon       = '⚡'
+    commentKey = isGoal ? 'goal_freekick' : 'miss_freekick'
   } else {
     // corner
-    mult   = calcGoalMult(selectedPlayer.pos, tactic)
-    isGoal = goalDigitsFromMult(mult).includes(digit)
-    label  = 'Kornerden'
-    icon   = '📐'
+    mult       = calcGoalMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+    isGoal     = goalDigitsFromMult(mult).includes(digit)
+    label      = 'Kornerden'
+    icon       = '📐'
+    commentKey = isGoal ? 'goal_corner' : 'miss_corner'
   }
+
+  const commentary = pickCommentary(commentKey)
 
   if (isGoal) {
     team.score++
     team.players[selectedPlayer.digit].goals++
     state.stats[teamIdx].goals++
     sounds.goal()
-    showAction(`⚽ ${label} GOL!`, `${currentMinute}. dakika`, 'gol', true, pLabel)
+    showAction(`⚽ ${label} GOL!`, `${currentMinute}' — ${commentary}`, 'gol', true, pLabel)
     addLog(currentMinute, teamIdx, selectedPlayer.digit, 'gol',
            `${label} GOL! — ${selectedPlayer.name}`)
     _flashScore(teamIdx)
@@ -241,7 +268,7 @@ function _processThird(digit) {
     renderPlayersStatus()
   } else {
     sounds.miss()
-    showAction(`${icon} Gol Yok`, `${digit} geldi — ${currentMinute}. dakika`, 'normal', true, pLabel)
+    showAction(`${icon} Gol Yok`, `${currentMinute}' — ${commentary}`, 'normal', true, pLabel)
     addLog(currentMinute, teamIdx, selectedPlayer.digit, 'normal',
            `${label} gol yok — ${selectedPlayer.name} (${digit})`)
   }
@@ -282,9 +309,10 @@ function _processShootout(digit) {
   if (isGoal) {
     so.scores[teamIdx]++
     sounds.goal()
+    const goalComment = pickCommentary('goal_penalty')
     showAction(
       `⚽ GOL! (${so.scores[0]}–${so.scores[1]})`,
-      `Atış ${Math.floor(so.round) + 1} — ${team.name}`,
+      `Atış ${Math.floor(so.round) + 1} — ${goalComment}`,
       'gol', true
     )
     addLog(120, teamIdx, 0, 'gol', `Penaltı atışı GOL — ${team.name}`)
@@ -292,9 +320,10 @@ function _processShootout(digit) {
     triggerAnimation('goal', teamIdx === 0 ? 'home' : 'away')
   } else {
     sounds.miss()
+    const missComment = pickCommentary('miss_penalty')
     showAction(
       `🥅 Kaçtı! (${so.scores[0]}–${so.scores[1]})`,
-      `Atış ${Math.floor(so.round) + 1} — ${team.name}`,
+      `Atış ${Math.floor(so.round) + 1} — ${missComment}`,
       'normal', true
     )
     addLog(120, teamIdx, 0, 'normal', `Penaltı atışı kaçtı — ${team.name}`)
@@ -334,7 +363,8 @@ function _scoreGoal(teamIdx, playerDigit) {
   state.stats[teamIdx].goals++
   sounds.goal()
 
-  showAction(`⚽ GOL!`, `${currentMinute}. dakika`, 'gol', true, pLabel)
+  const commentary = pickCommentary('goal_direct')
+  showAction(`⚽ GOL!`, `${currentMinute}' — ${commentary}`, 'gol', true, pLabel)
   addLog(currentMinute, teamIdx, playerDigit, 'gol', `GOL! — ${player.name}`)
   _flashScore(teamIdx)
   triggerAnimation('goal', teamIdx === 0 ? 'home' : 'away')
@@ -356,11 +386,13 @@ function _giveYellowCard(teamIdx, playerDigit) {
     player.redCard = true
     state.stats[teamIdx].redCards++
     sounds.card()
-    showAction(`🟨🟥 2. Sarı = Kırmızı!`, `Oyun dışı! — ${currentMinute}. dakika`, 'kart', true, pLabel)
+    const redComment = pickCommentary('card_red')
+    showAction(`🟨🟥 2. Sarı = Kırmızı!`, `${currentMinute}' — ${redComment}`, 'kart', true, pLabel)
     addLog(currentMinute, teamIdx, playerDigit, 'kart', `2. Sarı → Kırmızı — ${player.name}`)
   } else {
     sounds.card()
-    showAction(`🟨 Sarı Kart`, `${currentMinute}. dakika`, 'sari', true, pLabel)
+    const yellowComment = pickCommentary('card_yellow')
+    showAction(`🟨 Sarı Kart`, `${currentMinute}' — ${yellowComment}`, 'sari', true, pLabel)
     addLog(currentMinute, teamIdx, playerDigit, 'sari', `Sarı Kart — ${player.name}`)
   }
 
@@ -378,7 +410,8 @@ function _giveRedCard(teamIdx, playerDigit) {
   state.stats[teamIdx].redCards++
   sounds.card()
 
-  showAction(`🟥 Kırmızı Kart!`, `Oyun dışı! — ${currentMinute}. dakika`, 'kart', true, pLabel)
+  const redComment = pickCommentary('card_red')
+  showAction(`🟥 Kırmızı Kart!`, `${currentMinute}' — ${redComment}`, 'kart', true, pLabel)
   addLog(currentMinute, teamIdx, playerDigit, 'kart', `Kırmızı Kart — ${player.name}`)
   renderPlayersStatus()
   pullPhase = 'waiting'

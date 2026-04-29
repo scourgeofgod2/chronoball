@@ -1,14 +1,14 @@
 // ============================================================
 //  ChronoBall — Aksiyon Tablosu + Pozisyon & Taktik Sistemi
-//  Yeni: yakın frikik (tip 4) vs uzak frikik (tip 0) çarpanları
+//  v3: Bilateral taktik, defans kalitesi çarpanı, yorumcu sistemi
 // ============================================================
 
 export const ACTIONS = {
-  0: { name: 'Uzak Frikik',    icon: '🚩', type: 'freekick-far'  },  // uzak mesafeden
+  0: { name: 'Uzak Frikik',    icon: '🚩', type: 'freekick-far'  },
   1: { name: 'Faul',           icon: '🦵', type: 'faul'          },
   2: { name: 'Sarı Kart',      icon: '🟨', type: 'sari'          },
   3: { name: 'Penaltı',        icon: '🎯', type: 'penalty'       },
-  4: { name: 'Yakın Frikik',   icon: '🌀', type: 'freekick-near' },  // ceza sahası yakını +bonus
+  4: { name: 'Yakın Frikik',   icon: '🌀', type: 'freekick-near' },
   5: { name: 'Serbest Vuruş',  icon: '⚡', type: 'freekick'      },
   6: { name: 'Korner',         icon: '📐', type: 'corner'        },
   7: { name: 'GOL!',           icon: '⚽', type: 'gol'           },
@@ -25,47 +25,97 @@ export const POS_WEIGHTS = {
 }
 
 // ── Frikik Pozisyon Çarpanları ───────────────────────────────
-// Yakın frikik (ceza sahası kenarı) — tehlikeli bölge
 const FREEKICK_NEAR_MODS = { K: 1.0, D: 1.05, OS: 1.10, F: 1.20 }
-// Uzak frikik — standart mesafe
 const FREEKICK_FAR_MODS  = { K: 1.0, D: 1.05, OS: 1.07, F: 1.09 }
 
-// ── Taktik Modifiyerleri ─────────────────────────────────────
-export const TACTIC_MODS = {
-  attack:  1.3,
-  balance: 1.0,
-  defense: 0.7,
+// ── BİLATERAL TAKTİK SİSTEMİ ────────────────────────────────
+// Saldıran takımın taktiği → kendi gol üretim şansını etkiler
+export const ATTACK_TACTIC_MODS = {
+  attack:  1.30,  // Agresif baskı: +30% gol fırsatı
+  balance: 1.00,  // Normal oyun
+  defense: 0.85,  // Temkinli oyna: az gol fırsatı üretir
 }
 
-/** Normal oyun / korner gol çarpanı */
-export function calcGoalMult(pos, tactic) {
-  const base = POS_WEIGHTS[pos]?.goalMult ?? 0.5
-  const mod  = TACTIC_MODS[tactic] ?? 1.0
-  return Math.min(1, base * mod)
+// Savunan takımın taktiği → rakibin gol atma şansını etkiler
+export const DEFENSE_TACTIC_MODS = {
+  attack:  1.20,  // Yüksek hat = arkada boşluk = rakip kolay gol atar
+  balance: 1.00,  // Normal savunma
+  defense: 0.75,  // Kompakt blok = rakibin işi zorlaşır
 }
 
-/** Yakın frikik — D:+5%, OS:+10%, F:+20% */
-export function calcFreekickNearMult(pos, tactic) {
-  const base    = POS_WEIGHTS[pos]?.goalMult ?? 0.5
-  const tacMod  = TACTIC_MODS[tactic] ?? 1.0
-  const posMod  = FREEKICK_NEAR_MODS[pos] ?? 1.0
-  return Math.min(0.95, base * tacMod * posMod)
+// ── DEFANS KALİTESİ ÇARPANI ─────────────────────────────────
+/**
+ * Rakibin kadro kompozisyonunu değerlendirip gol atma kolaylığını döner.
+ * Düşük değer = rakibin savunması güçlü (gol atmak zor)
+ * Yüksek değer = rakibin savunması zayıf (gol atmak kolay)
+ *
+ * @param {Object} defTeam - savunan takım objesi
+ * @returns {number} çarpan (0.55 – 1.40 arasında)
+ */
+export function calcDefenseQualityMod(defTeam) {
+  if (!defTeam) return 1.0
+
+  const active    = defTeam.players.filter(p => !p.redCard)
+  const hasKeeper = active.some(p => p.pos === 'K')
+  const defCount  = active.filter(p => p.pos === 'D').length
+
+  let mod = 1.0
+  if (!hasKeeper) mod += 0.25                   // Kaleci yoksa +25% kolay gol
+  mod -= Math.min(4, defCount) * 0.04           // Her defans: -4% (max 4 = -16%)
+
+  return Math.max(0.55, Math.min(1.40, mod))
 }
 
-/** Uzak frikik — D:+5%, OS:+7%, F:+9% */
-export function calcFreekickFarMult(pos, tactic) {
-  const base    = POS_WEIGHTS[pos]?.goalMult ?? 0.5
-  const tacMod  = TACTIC_MODS[tactic] ?? 1.0
-  const posMod  = FREEKICK_FAR_MODS[pos] ?? 1.0
-  return Math.min(0.90, base * tacMod * posMod)
+// ── GOL ÇARPANI HESAPLAMA ────────────────────────────────────
+/**
+ * Normal oyun / korner gol çarpanı
+ * @param {string}      pos        - saldıran oyuncu pozisyonu
+ * @param {string}      atkTactic  - saldıran takım taktiği
+ * @param {string}      defTactic  - savunan takım taktiği
+ * @param {Object|null} defTeam    - savunan takım objesi
+ */
+export function calcGoalMult(pos, atkTactic, defTactic, defTeam) {
+  const base      = POS_WEIGHTS[pos]?.goalMult ?? 0.5
+  const atkMod    = ATTACK_TACTIC_MODS[atkTactic]  ?? 1.0
+  const defTacMod = DEFENSE_TACTIC_MODS[defTactic] ?? 1.0
+  const defQual   = calcDefenseQualityMod(defTeam)
+  return Math.min(0.95, base * atkMod * defTacMod * defQual)
 }
 
-/** Penaltı — yüksek sabit taban, pozisyona göre artar */
-export function calcPenaltyMult(pos, tactic) {
+/**
+ * Yakın frikik çarpanı — ceza sahası kenarı, tehlikeli bölge
+ */
+export function calcFreekickNearMult(pos, atkTactic, defTactic, defTeam) {
+  const base      = POS_WEIGHTS[pos]?.goalMult ?? 0.5
+  const atkMod    = ATTACK_TACTIC_MODS[atkTactic]  ?? 1.0
+  const defTacMod = DEFENSE_TACTIC_MODS[defTactic] ?? 1.0
+  const defQual   = calcDefenseQualityMod(defTeam)
+  const posMod    = FREEKICK_NEAR_MODS[pos] ?? 1.0
+  return Math.min(0.95, base * atkMod * defTacMod * defQual * posMod)
+}
+
+/**
+ * Uzak frikik çarpanı — standart mesafe
+ */
+export function calcFreekickFarMult(pos, atkTactic, defTactic, defTeam) {
+  const base      = POS_WEIGHTS[pos]?.goalMult ?? 0.5
+  const atkMod    = ATTACK_TACTIC_MODS[atkTactic]  ?? 1.0
+  const defTacMod = DEFENSE_TACTIC_MODS[defTactic] ?? 1.0
+  const defQual   = calcDefenseQualityMod(defTeam)
+  const posMod    = FREEKICK_FAR_MODS[pos] ?? 1.0
+  return Math.min(0.90, base * atkMod * defTacMod * defQual * posMod)
+}
+
+/**
+ * Penaltı çarpanı — taktik ve kadro etkisi azaltılmış (1'e 1 durum)
+ */
+export function calcPenaltyMult(pos, atkTactic, defTactic, defTeam) {
   const base     = POS_WEIGHTS[pos]?.penaltyMult ?? 0.70
-  const mod      = TACTIC_MODS[tactic] ?? 1.0
-  const modLight = 1 + (mod - 1) * 0.3
-  return Math.min(0.95, base * modLight)
+  const atkMod   = ATTACK_TACTIC_MODS[atkTactic] ?? 1.0
+  const atkLight = 1 + (atkMod - 1) * 0.3         // Taktik etkisi %30'a düşürüldü
+  const defQual  = calcDefenseQualityMod(defTeam)
+  const defLight = 1 + (defQual - 1) * 0.35        // Kadro etkisi %35'e düşürüldü
+  return Math.min(0.95, base * atkLight * defLight)
 }
 
 /**
@@ -91,4 +141,92 @@ export const RANDOM_NAMES = [
 
 export function randomNames() {
   return [...RANDOM_NAMES].sort(() => Math.random() - 0.5)
+}
+
+// ── YORUMCU SİSTEMİ ──────────────────────────────────────────
+export const COMMENTARY = {
+  goal_direct: [
+    'Top fileleri havalandırdı! İnanılmaz!',
+    'Mükemmel bir bitiriş! Seyirciler çılgına döndü!',
+    'Kimse durduramadı! Harika gol!',
+    'Bomba gibi bir vuruş! Kaleci çaresiz kaldı!',
+    'Saha inledi! Gol bulucu isim!',
+    'Köşeye yatırdı, kaleci uçsa değişmezdi!',
+  ],
+  goal_penalty: [
+    'Soğukkanlılıkla köşeye bıraktı!',
+    'Kaleci yanlış tarafa atladı, net gol!',
+    'Üst köşeden süpürdü, itiraz yok!',
+    'Penaltı uzmanı gibi bitirdi!',
+    'Kaleci donup kaldı, top içeride!',
+  ],
+  goal_freekick: [
+    'Duvarın üzerinden kıvrılarak içeri!',
+    'Kale duvarı dağıldı, top filelerde!',
+    'İnanılmaz bir kıvrım, kaleci seyirci!',
+    'Ön direkten dönerek içeri süzüldü!',
+    'Doğrudan gol! Müthiş vuruş!',
+  ],
+  goal_corner: [
+    'Saptırmayla içeri! Kornerden gol!',
+    'Kalabalıktan sıyrılıp kafayı vurdu!',
+    'Ön direkten dönerek ağlara!',
+    'Korner kaosunda top içeride!',
+  ],
+  miss_penalty: [
+    'Direk! Top dışarı, büyük şans kaçtı!',
+    'Kaleci muhteşem kurtardı! Süper refleks!',
+    'Penaltı kaçtı! Takım nefes aldı!',
+    'Kaleci bir hamleyle önüne attı!',
+    'Az fark üstten aştı, kaleci sevindi!',
+    'Yan direkte patladı! İnanamıyoruz!',
+  ],
+  miss_freekick: [
+    'Duvar harika bloke etti!',
+    'Kaleci güçlü durdu, kornere!',
+    'Az fark üstten aştı, çok yakındı!',
+    'Biraz daha alçak olsaydı gondü...',
+    'Duvar boyladı, fırsat heba oldu!',
+  ],
+  miss_corner: [
+    'Kimse yetişemedi, kaçan bir fırsat!',
+    'Defans temizledi, tehlike atlatıldı!',
+    'Kaleci hâkimiyetle kapıp kurtardı!',
+    'Başlar karıştı, kimse yetişemedi!',
+  ],
+  card_yellow: [
+    'Hakem anında cebine gitti!',
+    'Tartışmalı bir karar ama hakem kesin!',
+    'İtiraz etse de karar değişmiyor!',
+    'Sert müdahale, sarı kart kaçınılmazdı!',
+  ],
+  card_red: [
+    'Erken duş! Takım 10 kişi kalıyor!',
+    'Maç dengeleri tamamen değişti!',
+    'Tartışmalı karar ama hakem geri adım atmıyor!',
+    'Kırmızı! Bu karar maçı şekillendirebilir!',
+  ],
+  foul: [
+    'Sert müdahale! Hakem hemen çaldı!',
+    'Rakip yerde kaldı, hakem düdüğü kaldırdı!',
+    'Gereksiz faul, takım tehlikeye girdi!',
+    'Hakem hızlı tepki gösterdi, faul!',
+  ],
+  offside: [
+    'Bayrak kalktı, hakem ofsayt dedi!',
+    'Ofsayt tuzağı mükemmel kuruldu!',
+    'Çok erken koştu, kapana yakalandı!',
+    'Defans koordineli çıktı, ofsayt!',
+  ],
+}
+
+/**
+ * Belirli bir kategori için rastgele yorumcu metni döner
+ * @param {string} type - COMMENTARY anahtarı
+ * @returns {string}
+ */
+export function pickCommentary(type) {
+  const arr = COMMENTARY[type]
+  if (!arr || !arr.length) return ''
+  return arr[Math.floor(Math.random() * arr.length)]
 }

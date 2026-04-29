@@ -320,6 +320,7 @@ body {
 .cfg-meta-row   { display: flex; align-items: flex-end; gap: 10px; }
 .cfg-digit-group { flex: 1; }
 .select-sm      { height: 36px; font-size: 0.8rem; }
+.tactic-hint    { font-size: 0.68rem; color: var(--muted, #888); margin-top: 4px; line-height: 1.3; }
 
 .cfg-players {
   display:        flex;
