@@ -1,6 +1,7 @@
 // ============================================================
 //  ChronoBall — Maç Akış Motoru
-//  v3: Bilateral taktik, defans kalitesi, yorumcu sistemi
+//  v4: Bilateral taktik, defans kalitesi, yorumcu sistemi,
+//      uzatma devresi (extra-time)
 // ============================================================
 
 import { getState }    from '../state/gameState.js'
@@ -304,7 +305,7 @@ function _processShootout(digit) {
   const so      = state.shootout
   const teamIdx = _shootoutTeam
   const team    = state.teams[teamIdx]
-  const isGoal  = digit <= 5
+  const isGoal  = digit <= 4
 
   if (isGoal) {
     so.scores[teamIdx]++
@@ -421,14 +422,15 @@ function _giveRedCard(teamIdx, playerDigit) {
 // ── MAÇIN ADAMI ──────────────────────────────────────────────
 export function calcMotm(state) {
   let best = null
-  let bestScore = -1
+  let bestScore = -Infinity
 
   state.teams.forEach((team, teamIdx) => {
     team.players.forEach((player, digit) => {
+      if (player.redCard) return  // Kırmızı kartlı oyuncu aday olamaz
       const score = player.goals * 3
                   - player.yellowCards * 1
-                  - (player.redCard ? 3 : 0)
-      if (score > bestScore && player.goals > 0) {
+      // En az 1 puan olan ya da golcü olan oyuncular aday
+      if (score > bestScore && (player.goals > 0 || score > 0)) {
         bestScore = score
         best = { name: player.name, pos: player.pos, goals: player.goals,
                  teamName: team.name, teamIdx, digit }
@@ -487,6 +489,15 @@ export function continueAction() {
   }
   if (state.phase === 'second-half' && currentMinute >= 90 && state.turCount >= 5) {
     if (state.teams[0].score === state.teams[1].score) {
+      goToExtraTimeBreak(1); return  // Uzatma 1. yarısı
+    }
+    goToFulltime(); return
+  }
+  if (state.phase === 'extra-time-1' && currentMinute >= 97 && state.turCount >= 3) {
+    goToExtraTimeBreak(2); return  // Uzatma 2. yarısı
+  }
+  if (state.phase === 'extra-time-2' && currentMinute >= 105 && state.turCount >= 3) {
+    if (state.teams[0].score === state.teams[1].score) {
       startShootout(); return
     }
     goToFulltime(); return
@@ -514,6 +525,61 @@ export function startSecondHalf() {
   state.activeTeam = 1 - state.activeTeam
   state.turCount   = 0
   currentMinute    = 46
+
+  pullPhase      = 'player'
+  selectedPlayer = null
+  selectedAction = null
+
+  document.getElementById('match-log').innerHTML = ''
+  showScreen('match')
+  updateMatchUI(currentMinute)
+  renderPlayersStatus()
+  setChronoHint('player')
+}
+
+// ── UZATMA DEVRESİ ─────────────────────────────────────────────
+/**
+ * @param {1|2} half - 1 = Uzatma 1. yarısı (90-97'), 2 = Uzatma 2. yarısı (97-105')
+ */
+export function goToExtraTimeBreak(half) {
+  const state = getState()
+  sounds.whistle()
+
+  // Extra-time ekranını hazırla
+  const t = state.teams
+  const _set = (id, val) => {
+    const el = document.getElementById(id)
+    if (el) el.textContent = val
+  }
+  _set('et-team0-name', t[0].name)
+  _set('et-team1-name', t[1].name)
+  _set('et-score0',     t[0].score)
+  _set('et-score1',     t[1].score)
+
+  const heading = document.getElementById('extratime-heading')
+  const info    = document.getElementById('extratime-info')
+
+  if (half === 1) {
+    state.phase = 'extra-time-break-1'
+    if (heading) heading.textContent = 'Beraberlik! Uzatma 1. Yarısı Başlıyor'
+    if (info)    info.textContent    = '90-97. dakikalar arası oynanacak.'
+  } else {
+    state.phase = 'extra-time-break-2'
+    if (heading) heading.textContent = 'Beraberlik! Uzatma 2. Yarısı Başlıyor'
+    if (info)    info.textContent    = '97-105. dakikalar arası oynanacak.'
+  }
+
+  showScreen('extratime')
+}
+
+export function startExtraTime() {
+  const state = getState()
+  const isFirstHalf = (state.phase === 'extra-time-break-1')
+
+  state.phase      = isFirstHalf ? 'extra-time-1' : 'extra-time-2'
+  state.activeTeam = 1 - state.activeTeam
+  state.turCount   = 0
+  currentMinute    = isFirstHalf ? 90 : 97
 
   pullPhase      = 'player'
   selectedPlayer = null

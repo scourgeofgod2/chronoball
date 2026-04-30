@@ -1,5 +1,6 @@
 // ============================================================
 //  ChronoBall — Devre Arası & Maç Sonu Ekranları
+//  + Sosyal Paylaşım Kartı (Canvas API)
 // ============================================================
 
 import { getState }   from '../state/gameState.js'
@@ -125,4 +126,132 @@ function _row(v0, v1, label) {
 function _set(id, val) {
   const el = document.getElementById(id)
   if (el) el.textContent = val
+}
+
+// ============================================================
+//  Sosyal Paylaşım Kartı — Canvas API
+// ============================================================
+
+export async function buildShareCard() {
+  const state = getState()
+  const t     = state.teams
+  const motm  = calcMotm(state)
+  const so    = state.shootout
+
+  // Sonuç metni
+  let resultText
+  if (so?.scores && (so.scores[0] !== so.scores[1]) && so.round > 0) {
+    const winner = so.scores[0] > so.scores[1] ? t[0].name : t[1].name
+    resultText = `${winner} Penaltılarda Kazandı!`
+  } else if (t[0].score > t[1].score) {
+    resultText = `${t[0].name} Kazandı!`
+  } else if (t[1].score > t[0].score) {
+    resultText = `${t[1].name} Kazandı!`
+  } else {
+    resultText = 'Beraberlik!'
+  }
+
+  const canvas  = document.createElement('canvas')
+  canvas.width  = 800
+  canvas.height = 480
+  const ctx     = canvas.getContext('2d')
+
+  // ── Arkaplan ────────────────────────────────────────────
+  ctx.fillStyle = '#0a0a0a'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  // Yeşil saha çizgisi (dekoratif)
+  ctx.strokeStyle = '#00ff88'
+  ctx.lineWidth   = 3
+  ctx.strokeRect(16, 16, canvas.width - 32, canvas.height - 32)
+
+  // Logo çizgisi üst
+  ctx.fillStyle = '#00ff88'
+  ctx.fillRect(16, 16, canvas.width - 32, 4)
+
+  // ── Başlık: ChronoBall ──────────────────────────────────
+  ctx.fillStyle = '#ffffff'
+  ctx.font      = 'bold 22px Inter, Arial, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText('⚽ CHRONOBALL', canvas.width / 2, 60)
+
+  // ── Takım Adları & Skor ─────────────────────────────────
+  // Ev sahibi adı
+  ctx.fillStyle = '#00ff88'
+  ctx.font      = 'bold 36px Inter, Arial, sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText(t[0].name, 310, 180)
+
+  // Skor
+  ctx.fillStyle = '#ffffff'
+  ctx.font      = 'bold 80px Inter, Arial, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText(`${t[0].score} — ${t[1].score}`, canvas.width / 2, 200)
+
+  // Deplasman adı
+  ctx.fillStyle = '#ff6b6b'
+  ctx.font      = 'bold 36px Inter, Arial, sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText(t[1].name, 490, 180)
+
+  // ── Sonuç metni ─────────────────────────────────────────
+  ctx.fillStyle = '#ffdd57'
+  ctx.font      = 'bold 26px Inter, Arial, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText(`🏆 ${resultText}`, canvas.width / 2, 255)
+
+  // ── MOTM ────────────────────────────────────────────────
+  if (motm) {
+    const posIcon = { K:'🧤', D:'🛡', OS:'⚙', F:'🔥' }[motm.pos] || '⚽'
+    ctx.fillStyle = '#aaaaaa'
+    ctx.font      = '18px Inter, Arial, sans-serif'
+    ctx.fillText('⭐ MAÇIN ADAMI', canvas.width / 2, 300)
+    ctx.fillStyle = '#ffffff'
+    ctx.font      = 'bold 22px Inter, Arial, sans-serif'
+    ctx.fillText(`${posIcon} ${motm.name} — ${motm.goals} Gol`, canvas.width / 2, 330)
+  }
+
+  // ── İstatistik ──────────────────────────────────────────
+  const s = state.stats
+  ctx.fillStyle = '#888888'
+  ctx.font      = '16px Inter, Arial, sans-serif'
+  ctx.fillText(
+    `Gol: ${s[0].goals}-${s[1].goals}  |  Korner: ${s[0].corners}-${s[1].corners}  |  Sarı: ${s[0].yellowCards}-${s[1].yellowCards}  |  Kırmızı: ${s[0].redCards}-${s[1].redCards}`,
+    canvas.width / 2, 375
+  )
+
+  // ── URL / Watermark ─────────────────────────────────────
+  ctx.fillStyle = '#444444'
+  ctx.font      = '14px Inter, Arial, sans-serif'
+  ctx.fillText('chronoball.app', canvas.width / 2, 450)
+
+  // ── Paylaş veya İndir ───────────────────────────────────
+  return new Promise((resolve) => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) { resolve(); return }
+      const file = new File([blob], 'chronoball-mac.png', { type: 'image/png' })
+      try {
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files:  [file],
+            title:  'ChronoBall Maç Sonucu',
+            text:   `${t[0].name} ${t[0].score} — ${t[1].score} ${t[1].name}`,
+          })
+        } else {
+          // Fallback: PNG olarak indir
+          const url = URL.createObjectURL(blob)
+          const a   = document.createElement('a')
+          a.href     = url
+          a.download = 'chronoball-mac.png'
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+        }
+      } catch (_) {
+        // Kullanıcı paylaşımı iptal etti — sessizce geç
+      }
+      resolve()
+    }, 'image/png')
+  })
 }

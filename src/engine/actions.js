@@ -18,10 +18,10 @@ export const ACTIONS = {
 
 // ── Pozisyon Taban Ağırlıkları ───────────────────────────────
 export const POS_WEIGHTS = {
-  K:  { goalMult: 0.15, penaltyMult: 0.60 },
-  D:  { goalMult: 0.30, penaltyMult: 0.65 },
-  OS: { goalMult: 0.55, penaltyMult: 0.75 },
-  F:  { goalMult: 0.80, penaltyMult: 0.85 },
+  K:  { goalMult: 0.03, penaltyMult: 0.45 },  // Kaleci: çok nadiren gol atar
+  D:  { goalMult: 0.18, penaltyMult: 0.58 },
+  OS: { goalMult: 0.32, penaltyMult: 0.68 },
+  F:  { goalMult: 0.48, penaltyMult: 0.78 },
 }
 
 // ── Frikik Pozisyon Çarpanları ───────────────────────────────
@@ -31,7 +31,7 @@ const FREEKICK_FAR_MODS  = { K: 1.0, D: 1.05, OS: 1.07, F: 1.09 }
 // ── BİLATERAL TAKTİK SİSTEMİ ────────────────────────────────
 // Saldıran takımın taktiği → kendi gol üretim şansını etkiler
 export const ATTACK_TACTIC_MODS = {
-  attack:  1.30,  // Agresif baskı: +30% gol fırsatı
+  attack:  1.20,  // Agresif baskı: +20% gol fırsatı
   balance: 1.00,  // Normal oyun
   defense: 0.85,  // Temkinli oyna: az gol fırsatı üretir
 }

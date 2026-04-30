@@ -6,9 +6,13 @@
 import { getState } from '../state/gameState.js'
 
 export function updateMatchUI(minute = 1) {
-  const state     = getState()
-  const isFirst   = state.phase === 'first-half'
-  const halfLabel = isFirst ? '1. YARI' : '2. YARI'
+  const state = getState()
+  const halfLabel =
+    state.phase === 'first-half'      ? '1. YARI' :
+    state.phase === 'extra-time-1'    ? 'UZATMA 1' :
+    state.phase === 'extra-time-2'    ? 'UZATMA 2' :
+    state.phase === 'penalty-shootout'? 'PENALTI'  :
+                                        '2. YARI'
 
   _set('match-minute',     `${minute}. DAKİKA`)
   _set('match-half',       halfLabel)

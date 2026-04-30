@@ -1141,3 +1141,102 @@ body {
   .match-body     { grid-template-columns: 175px 1fr 175px; }
   .cfg-logo-text  { font-size: 2.6rem; }
 }
+
+/* ══════════════════════════════════════════════════════════
+   YENİ STILLER — v4 Eklemeleri
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Kronometre Geri Sayım Uyarısı ──────────────────────── */
+.chrono-hint.hint-warning {
+  color:       #dc2626 !important;
+  font-weight: 800;
+  animation:   hint-blink 0.5s ease-in-out infinite;
+}
+@keyframes hint-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ── Formasyon Seçici ────────────────────────────────────── */
+.cfg-formation-group {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  margin-bottom:  10px;
+}
+
+.formation-board-wrap {
+  background:   var(--surface-2);
+  border:       var(--border-1);
+  border-radius:6px;
+  padding:      8px 12px;
+  min-height:   56px;
+}
+
+.formation-board {
+  display:        flex;
+  flex-direction: column;
+  gap:            4px;
+}
+
+.fb-row {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+}
+
+.fb-label {
+  font-size:  0.7rem;
+  font-weight:700;
+  color:      var(--ink-3);
+  width:      24px;
+  text-align: right;
+  flex-shrink:0;
+}
+
+.fb-players {
+  font-size:   1.05rem;
+  letter-spacing: 2px;
+}
+
+/* ── Paylaş & Yeni Maç Buton Satırı ─────────────────────── */
+.result-btn-row {
+  display:   flex;
+  gap:       12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top:8px;
+}
+
+.btn-share {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             6px;
+  padding:         12px 24px;
+  font-family:     var(--font);
+  font-size:       0.9rem;
+  font-weight:     800;
+  text-transform:  uppercase;
+  letter-spacing:  0.04em;
+  cursor:          pointer;
+  border:          var(--border);
+  border-radius:   6px;
+  box-shadow:      var(--shadow);
+  background:      #1a56db;
+  color:           #ffffff;
+  transition:      transform 80ms var(--ease), box-shadow 80ms var(--ease);
+}
+.btn-share:active {
+  transform:  translate(2px, 2px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Uzatma Devresi Bilgi Metni ──────────────────────────── */
+.extra-time-info {
+  font-size:   1rem;
+  font-weight: 600;
+  color:       var(--ink-2);
+  text-align:  center;
+  padding:     8px 0;
+}

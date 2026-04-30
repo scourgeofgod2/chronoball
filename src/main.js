@@ -5,13 +5,14 @@
 import { setState, createTeam }       from './state/gameState.js'
 import {
   chronoInit, chronoStart, chronoStop,
-  chronoReset, isRunning,
+  chronoReset, isRunning, getLastDigit,
 }                                      from './engine/chrono.js'
 import {
   pullPhase, setPullPhase,
   processDigit,
   continueAction as _continueAction,
   startSecondHalf as _startSecondHalf,
+  startExtraTime as _startExtraTime,
   newMatch as _newMatch,
 }                                      from './engine/match.js'
 import {
@@ -25,19 +26,49 @@ import { showScreen, switchTab as _switchTab } from './ui/screens.js'
 import { updateMatchUI }               from './ui/scoreboard.js'
 import { hideAction }                  from './ui/actionPanel.js'
 import { setChronoHint }               from './ui/chronoHint.js'
+import { applyFormation as _applyFormation, buildFormationSelectors } from './ui/formation.js'
+import { buildShareCard }              from './ui/resultScreens.js'
 
 // ── Kronometre tick → DOM ────────────────────────────────────
-chronoInit((displayText, running) => {
-  const disp = document.getElementById('chrono-display')
-  if (!disp) return
-  disp.textContent = displayText
-  if (running) disp.classList.add('running')
-  else         disp.classList.remove('running')
-})
+chronoInit(
+  // tickCallback: (displayText, running, countdownSecs)
+  (displayText, running, countdownSecs) => {
+    const disp = document.getElementById('chrono-display')
+    if (!disp) return
+    disp.textContent = displayText
+    if (running) disp.classList.add('running')
+    else         disp.classList.remove('running')
+
+    // Geri sayım uyarısı
+    const hint   = document.getElementById('chrono-hint')
+    const btnTxt = document.getElementById('btn-pull-text')
+    if (running && countdownSecs !== null && countdownSecs <= 5) {
+      if (hint) {
+        hint.textContent = `⚠️ ${countdownSecs} saniye — DURDUR!`
+        hint.classList.add('hint-warning')
+      }
+      if (btnTxt) btnTxt.textContent = `🛑 DURDUR! (${countdownSecs})`
+    } else if (running && countdownSecs !== null) {
+      if (hint) hint.classList.remove('hint-warning')
+    } else if (!running) {
+      if (hint) hint.classList.remove('hint-warning')
+    }
+  },
+  // autoStopCallback: 12 saniye dolunca otomatik durdur
+  () => {
+    const btnTxt = document.getElementById('btn-pull-text')
+    if (btnTxt) btnTxt.textContent = '⚽ ÇEK!'
+    const hint = document.getElementById('chrono-hint')
+    if (hint) hint.classList.remove('hint-warning')
+    // chrono.js zaten durdurdu — elapsed son değerde, getLastDigit() hazır
+    processDigit(getLastDigit())
+  }
+)
 
 // ── Config ekranını hazırla ──────────────────────────────────
 buildPlayerInputs()
 buildPresetOptions()
+buildFormationSelectors()
 
 // ══════════════════════════════════════════════════════════════
 //  Global Fonksiyonlar (HTML onclick bağlantıları)
@@ -62,6 +93,17 @@ window.startMatch = function () {
       })
     }
     return list
+  }
+
+  // ── Forvet Limiti Kontrolü (max 5) ──────────────────────
+  for (const t of [0, 1]) {
+    const players  = buildPlayers(t)
+    const fCount   = players.filter(p => p.pos === 'F').length
+    const teamName = t === 0 ? team0Name : team1Name
+    if (fCount > 5) {
+      alert(`⚠️ ${teamName}: Maksimum 5 forvet olabilir (şu an ${fCount} forvet var).\n\nFormasyonu değiştir veya bazı oyuncuları OS/D pozisyonuna al.`)
+      return
+    }
   }
 
   setState({
@@ -116,11 +158,17 @@ window.startSecondHalf = function () {
   _startSecondHalf()
 }
 
+window.startExtraTime = function () {
+  chronoReset()
+  _startExtraTime()
+}
+
 window.newMatch = function () {
   chronoReset()
   _newMatch()
   buildPlayerInputs()
   buildPresetOptions()
+  buildFormationSelectors()
 }
 
 window.applyPreset = function (teamIdx) {
@@ -133,6 +181,14 @@ window.randomFill = function (teamIdx) {
 
 window.switchTab = function (tab, btn) {
   _switchTab(tab, btn)
+}
+
+window.applyFormation = function (teamIdx) {
+  _applyFormation(teamIdx)
+}
+
+window.shareResult = async function () {
+  await buildShareCard()
 }
 
 // ══════════════════════════════════════════════════════════════

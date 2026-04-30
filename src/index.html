@@ -43,6 +43,8 @@
 
             <input type="text" id="team0-name" class="input cfg-team-name"
                    placeholder="Takım adı…" maxlength="20" />
+            <!-- Formasyon seçici (formation.js tarafından doldurulur) -->
+            <div id="team0-formation-container"></div>
             <div class="cfg-meta-row">
               <div class="cfg-digit-group">
                 <label class="field-label">GOL RAKAMI</label>
@@ -93,6 +95,8 @@
 
             <input type="text" id="team1-name" class="input cfg-team-name"
                    placeholder="Takım adı…" maxlength="20" />
+            <!-- Formasyon seçici (formation.js tarafından doldurulur) -->
+            <div id="team1-formation-container"></div>
             <div class="cfg-meta-row">
               <div class="cfg-digit-group">
                 <label class="field-label">GOL RAKAMI</label>
@@ -285,7 +289,37 @@
         <div class="summary-log" id="fulltime-log"></div>
       </div>
 
-      <button class="btn btn-cta" onclick="newMatch()">🔄 YENİ MAÇ</button>
+      <div class="result-btn-row">
+        <button class="btn btn-share" onclick="shareResult()">📤 SONUCU PAYLAŞ</button>
+        <button class="btn btn-cta" onclick="newMatch()">🔄 YENİ MAÇ</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       EXTRA TIME BREAK SCREEN
+  ══════════════════════════════ -->
+  <div id="screen-extratime" class="screen result-screen">
+    <div class="result-wrap">
+
+      <span class="result-badge warning-badge">⏱️ UZATMA DEVRESİ</span>
+      <h2 class="result-heading" id="extratime-heading">Beraberlik! Uzatma Başlıyor</h2>
+
+      <div class="result-score-row">
+        <span class="result-team home-team" id="et-team0-name">Ev Sahibi</span>
+        <div class="result-score-box home-score-box" id="et-score0">0</div>
+        <span class="result-dash">—</span>
+        <div class="result-score-box away-score-box" id="et-score1">0</div>
+        <span class="result-team away-team" id="et-team1-name">Deplasman</span>
+      </div>
+
+      <div class="nb-card stats-card">
+        <div class="stats-card-title">⏱️ UZATMA BİLGİSİ</div>
+        <p class="extra-time-info" id="extratime-info">90-97. dakikalar arası oynanacak.</p>
+      </div>
+
+      <button class="btn btn-cta" onclick="startExtraTime()">▶ UZATMAYA DEVAM</button>
 
     </div>
   </div>
