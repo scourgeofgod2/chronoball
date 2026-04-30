@@ -59,7 +59,8 @@
               </div>
               <div class="cfg-digit-group">
                 <label class="field-label">TAKTİK</label>
-                <select id="team0-tactic" class="select select-sm">
+                <select id="team0-tactic" class="select select-sm"
+                        onchange="applyTacticFormation(0)">
                   <option value="attack">⚔️ Hücum</option>
                   <option value="balance" selected>⚖️ Denge</option>
                   <option value="defense">🛡️ Defans</option>
@@ -111,7 +112,8 @@
               </div>
               <div class="cfg-digit-group">
                 <label class="field-label">TAKTİK</label>
-                <select id="team1-tactic" class="select select-sm">
+                <select id="team1-tactic" class="select select-sm"
+                        onchange="applyTacticFormation(1)">
                   <option value="attack">⚔️ Hücum</option>
                   <option value="balance" selected>⚖️ Denge</option>
                   <option value="defense">🛡️ Defans</option>

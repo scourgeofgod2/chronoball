@@ -32,10 +32,39 @@ export let selectedPlayer = null
 export let selectedAction = null
 export let currentMinute  = 1
 
-let _shootoutTeam  = 0
-let _shootoutRound = 0
+let _shootoutTeam      = 0
+let _shootoutRound     = 0
+let _autoContinueTimer = null   // 3 saniyelik otomatik geçiş timer'ı
 
-export function setPullPhase(p) { pullPhase = p }
+const AUTO_CONTINUE_MS = 3000  // 3 saniye
+
+/** pullPhase ayarlar; 'waiting' olunca 3 sn sonra otomatik devam */
+export function setPullPhase(p) {
+  pullPhase = p
+  _clearAutoContinue()
+  if (p === 'waiting') {
+    _startAutoContinue()
+  }
+}
+
+function _startAutoContinue() {
+  _autoContinueTimer = setTimeout(() => {
+    _autoContinueTimer = null
+    continueAction()
+  }, AUTO_CONTINUE_MS)
+}
+
+function _clearAutoContinue() {
+  if (_autoContinueTimer !== null) {
+    clearTimeout(_autoContinueTimer)
+    _autoContinueTimer = null
+  }
+}
+
+/** Dışarıdan timer'ı iptal etmek için (manuel devam butonunda) */
+export function cancelAutoContinue() {
+  _clearAutoContinue()
+}
 
 // ── Çekim işle ─────────────────────────────────────────────
 export function processDigit(digit) {

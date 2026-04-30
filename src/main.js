@@ -11,6 +11,7 @@ import {
   pullPhase, setPullPhase,
   processDigit,
   continueAction as _continueAction,
+  cancelAutoContinue,
   startSecondHalf as _startSecondHalf,
   startExtraTime as _startExtraTime,
   newMatch as _newMatch,
@@ -26,7 +27,7 @@ import { showScreen, switchTab as _switchTab } from './ui/screens.js'
 import { updateMatchUI }               from './ui/scoreboard.js'
 import { hideAction }                  from './ui/actionPanel.js'
 import { setChronoHint }               from './ui/chronoHint.js'
-import { applyFormation as _applyFormation, buildFormationSelectors } from './ui/formation.js'
+import { applyFormation as _applyFormation, buildFormationSelectors, applyTacticFormation as _applyTacticFormation } from './ui/formation.js'
 import { buildShareCard }              from './ui/resultScreens.js'
 
 // ── Kronometre tick → DOM ────────────────────────────────────
@@ -150,6 +151,7 @@ window.handlePull = function () {
 }
 
 window.continueAction = function () {
+  cancelAutoContinue()  // Manuel tıklamada timer'ı iptal et
   _continueAction()
 }
 
@@ -187,6 +189,10 @@ window.applyFormation = function (teamIdx) {
   _applyFormation(teamIdx)
 }
 
+window.applyTacticFormation = function (teamIdx) {
+  _applyTacticFormation(teamIdx)
+}
+
 window.shareResult = async function () {
   await buildShareCard()
 }
@@ -208,6 +214,9 @@ document.addEventListener('keydown', (e) => {
 
   if (e.code === 'Enter') {
     e.preventDefault()
-    if (pullPhase === 'waiting') _continueAction()
+    if (pullPhase === 'waiting') {
+      cancelAutoContinue()
+      _continueAction()
+    }
   }
 })
