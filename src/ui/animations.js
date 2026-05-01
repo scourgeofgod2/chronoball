@@ -17,10 +17,13 @@ export function triggerAnimation(type, teamSide) {
 
 // ── GOL ANİMASYONU ───────────────────────────────────────────
 // 1) Skor paneli yanıp söner (takım renginde)
-// 2) Ekran üstünde kısa "⚽ GOL!" overlay gösterir
+// 2) Ekran üstünde kısa "GOL!" overlay gösterir
 // 3) Oyuncu kutlama figürü belirir
 function _goalAnimation(teamSide) {
-  // a) Skor flash + ekran overlay
+  if (navigator.vibrate) {
+    navigator.vibrate([100, 50, 100, 50, 200]);
+  }
+
   const overlay = _getOrCreate('anim-goal-overlay', 'goal-overlay')
   overlay.innerHTML = `<span class="goal-anim-text">⚽ GOL!</span>`
   overlay.classList.remove(`team-home`, `team-away`)
@@ -29,7 +32,6 @@ function _goalAnimation(teamSide) {
   void overlay.offsetWidth
   overlay.classList.add('anim-active')
 
-  // b) Side panel flash
   const panel = document.querySelector(`.${teamSide}-panel`)
   if (panel) {
     panel.classList.remove('panel-flash')
@@ -38,40 +40,15 @@ function _goalAnimation(teamSide) {
     setTimeout(() => panel.classList.remove('panel-flash'), 1600)
   }
 
-  // c) Oyuncu kutlama figürü
   _spawnCelebration(teamSide)
 
-  // d) Overlay kaldır
   setTimeout(() => overlay.classList.remove('anim-active'), 1800)
 }
 
 // ── FRİKİK ANİMASYONU ────────────────────────────────────────
-// Top yay şeklinde hareket eder + tekme efekti
+// Ayak ve top emojisi animasyonu kaldırıldı
 function _freekickAnimation(teamSide) {
-  const container = _getOrCreate('anim-freekick-container', 'freekick-container')
-  container.innerHTML = ''
-  container.classList.remove('anim-active', 'dir-home', 'dir-away')
-
-  // Top elementi
-  const ball = document.createElement('div')
-  ball.className = `freekick-ball freekick-ball-${teamSide}`
-  ball.textContent = '⚽'
-  container.appendChild(ball)
-
-  // Tekme figure
-  const kicker = document.createElement('div')
-  kicker.className = `freekick-kicker freekick-kicker-${teamSide}`
-  kicker.textContent = '🦵'
-  container.appendChild(kicker)
-
-  container.classList.add('anim-active', `dir-${teamSide}`)
-  void container.offsetWidth
-
-  // Temizle
-  setTimeout(() => {
-    container.classList.remove('anim-active')
-    container.innerHTML = ''
-  }, 700)
+  return;
 }
 
 // ── KUTLAMA FİGÜRÜ ───────────────────────────────────────────
@@ -84,7 +61,6 @@ function _spawnCelebration(teamSide) {
   fig.innerHTML = `<span class="cel-player">🙌</span><span class="cel-stars">✨</span>`
   container.appendChild(fig)
 
-  // Kaldır
   setTimeout(() => fig.remove(), 1600)
 }
 

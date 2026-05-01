@@ -14,8 +14,8 @@ import {
   goalDigitsFromMult,
   pickCommentary,
 } from './actions.js'
-import { calcMinute }  from './chrono.js'
-import { sounds }      from '../utils/audio.js'
+import { calcMinute, chronoStart, chronoStop, getLastDigit, isRunning } from './chrono.js'
+import { sounds, playCommentary } from '../utils/audio.js'
 import { renderPlayersStatus, highlightPlayer } from '../ui/players.js'
 import { showAction, hideAction }  from '../ui/actionPanel.js'
 import { addLog }                  from '../ui/log.js'
@@ -34,24 +34,18 @@ export let currentMinute  = 1
 
 let _shootoutTeam      = 0
 let _shootoutRound     = 0
-let _autoContinueTimer = null   // 3 saniyelik otomatik geçiş timer'ı
+let _autoContinueTimer = null
 
-const AUTO_CONTINUE_MS = 3000  // 3 saniye
+const AUTO_SKIP_MS = 3000
 
-/** pullPhase ayarlar; 'waiting' olunca 3 sn sonra otomatik devam */
 export function setPullPhase(p) {
   pullPhase = p
   _clearAutoContinue()
-  if (p === 'waiting') {
-    _startAutoContinue()
+  
+  if (p === 'waiting' || p === 'action' || p === 'third') {
+    chronoStop()
+    return
   }
-}
-
-function _startAutoContinue() {
-  _autoContinueTimer = setTimeout(() => {
-    _autoContinueTimer = null
-    continueAction()
-  }, AUTO_CONTINUE_MS)
 }
 
 function _clearAutoContinue() {
@@ -90,13 +84,13 @@ function _processPlayer(digit) {
       'kart', true, `${player.name} (#${digit})`
     )
     addLog(currentMinute, teamIdx, digit, 'skip', `${player.name} sahada yok`)
-    pullPhase = 'waiting'
+    setPullPhase('waiting')
     setChronoHint('waiting')
     return
   }
 
   selectedPlayer = { digit, name: player.name, pos: player.pos || 'OS' }
-  pullPhase = 'action'
+  setPullPhase('action')
   highlightPlayer(teamIdx, digit)
   sounds.click()
 
@@ -140,9 +134,10 @@ function _processAction(digit) {
       state.stats[teamIdx].fouls++
       sounds.card()
       const foulComment = pickCommentary('foul')
+      playCommentary('foul')
       showAction(`🦵 Faul`, `${currentMinute}' — ${foulComment}`, 'normal', true, pLabel)
       addLog(currentMinute, teamIdx, selectedPlayer.digit, 'normal', `Faul — ${selectedPlayer.name}`)
-      pullPhase = 'waiting'
+      setPullPhase('waiting')
       setChronoHint('waiting')
       break
     }
@@ -156,7 +151,7 @@ function _processAction(digit) {
         `Gol şansı: ${_chanceLabel(pm)} — Tekrar çek!`,
         'normal', false, pLabel
       )
-      pullPhase = 'third'
+      setPullPhase('third')
       setChronoHint('third')
       break
     }
@@ -170,7 +165,7 @@ function _processAction(digit) {
         'normal', false, pLabel
       )
       triggerAnimation('freekick', teamIdx === 0 ? 'home' : 'away')
-      pullPhase = 'third'
+      setPullPhase('third')
       setChronoHint('third')
       break
     }
@@ -184,7 +179,7 @@ function _processAction(digit) {
         'normal', false, pLabel
       )
       triggerAnimation('freekick', teamIdx === 0 ? 'home' : 'away')
-      pullPhase = 'third'
+      setPullPhase('third')
       setChronoHint('third')
       break
     }
@@ -197,7 +192,7 @@ function _processAction(digit) {
         `Gol şansı: ${_chanceLabel(gm)} — Tekrar çek!`,
         'normal', false, pLabel
       )
-      pullPhase = 'third'
+      setPullPhase('third')
       setChronoHint('third')
       break
     }
@@ -211,18 +206,18 @@ function _processAction(digit) {
         `Gol şansı: ${_chanceLabel(cm)} — Tekrar çek!`,
         'normal', false, pLabel
       )
-      pullPhase = 'third'
+      setPullPhase('third')
       setChronoHint('third')
       break
     }
 
     case 'normal': {
-      // Ofsayt
       const offComment = pickCommentary('offside')
+      playCommentary('offside')
       showAction(`${action.icon} ${action.name}`, `${currentMinute}' — ${offComment}`, 'normal', true, pLabel)
       addLog(currentMinute, teamIdx, selectedPlayer.digit, 'normal',
              `${action.name} — ${selectedPlayer.name}`)
-      pullPhase = 'waiting'
+      setPullPhase('waiting')
       setChronoHint('waiting')
       break
     }
@@ -231,7 +226,7 @@ function _processAction(digit) {
       showAction(`${action.icon} ${action.name}`, `${currentMinute}. dakika`, 'normal', true, pLabel)
       addLog(currentMinute, teamIdx, selectedPlayer.digit, 'normal',
              `${action.name} — ${selectedPlayer.name}`)
-      pullPhase = 'waiting'
+      setPullPhase('waiting')
       setChronoHint('waiting')
   }
 }
@@ -284,6 +279,7 @@ function _processThird(digit) {
   }
 
   const commentary = pickCommentary(commentKey)
+  playCommentary(commentKey)
 
   if (isGoal) {
     team.score++
@@ -291,6 +287,7 @@ function _processThird(digit) {
     state.stats[teamIdx].goals++
     sounds.goal()
     showAction(`⚽ ${label} GOL!`, `${currentMinute}' — ${commentary}`, 'gol', true, pLabel)
+    triggerAnimation('goal', teamIdx === 0 ? 'home' : 'away')
     addLog(currentMinute, teamIdx, selectedPlayer.digit, 'gol',
            `${label} GOL! — ${selectedPlayer.name}`)
     _flashScore(teamIdx)
@@ -303,7 +300,7 @@ function _processThird(digit) {
            `${label} gol yok — ${selectedPlayer.name} (${digit})`)
   }
 
-  pullPhase = 'waiting'
+  setPullPhase('waiting')
   setChronoHint('waiting')
 }
 
@@ -319,7 +316,7 @@ export function startShootout() {
   showScreen('match')
   updateMatchUI(120)
 
-  pullPhase = 'shootout'
+  setPullPhase('shootout')
   setChronoHint('player')
   showAction(
     `🥅 Penaltı Atışları Başlıyor!`,
@@ -340,6 +337,7 @@ function _processShootout(digit) {
     so.scores[teamIdx]++
     sounds.goal()
     const goalComment = pickCommentary('goal_penalty')
+    playCommentary('goal_penalty', 1200)
     showAction(
       `⚽ GOL! (${so.scores[0]}–${so.scores[1]})`,
       `Atış ${Math.floor(so.round) + 1} — ${goalComment}`,
@@ -351,6 +349,7 @@ function _processShootout(digit) {
   } else {
     sounds.miss()
     const missComment = pickCommentary('miss_penalty')
+    playCommentary('miss_penalty')
     showAction(
       `🥅 Kaçtı! (${so.scores[0]}–${so.scores[1]})`,
       `Atış ${Math.floor(so.round) + 1} — ${missComment}`,
@@ -369,15 +368,15 @@ function _processShootout(digit) {
 
   const [s0, s1] = so.scores
   const remaining = so.maxRounds - so.round
-  const earlyDecide = remaining < so.maxRounds && Math.abs(s0 - s1) > remaining * 2
+  const earlyDecide = remaining < so.maxRounds && Math.abs(s0 - s1) > remaining
 
   if (so.round >= so.maxRounds || earlyDecide) {
-    pullPhase = 'waiting'
+    setPullPhase('waiting')
     setChronoHint('waiting')
     return
   }
 
-  pullPhase = 'shootout'
+  setPullPhase('shootout')
   setChronoHint('player')
 }
 
@@ -394,12 +393,13 @@ function _scoreGoal(teamIdx, playerDigit) {
   sounds.goal()
 
   const commentary = pickCommentary('goal_direct')
+  playCommentary('goal_direct', 1200)
   showAction(`⚽ GOL!`, `${currentMinute}' — ${commentary}`, 'gol', true, pLabel)
   addLog(currentMinute, teamIdx, playerDigit, 'gol', `GOL! — ${player.name}`)
   _flashScore(teamIdx)
   triggerAnimation('goal', teamIdx === 0 ? 'home' : 'away')
   renderPlayersStatus()
-  pullPhase = 'waiting'
+  setPullPhase('waiting')
   setChronoHint('waiting')
 }
 
@@ -417,17 +417,19 @@ function _giveYellowCard(teamIdx, playerDigit) {
     state.stats[teamIdx].redCards++
     sounds.card()
     const redComment = pickCommentary('card_red')
+    playCommentary('card_red')
     showAction(`🟨🟥 2. Sarı = Kırmızı!`, `${currentMinute}' — ${redComment}`, 'kart', true, pLabel)
     addLog(currentMinute, teamIdx, playerDigit, 'kart', `2. Sarı → Kırmızı — ${player.name}`)
   } else {
     sounds.card()
     const yellowComment = pickCommentary('card_yellow')
+    playCommentary('card_yellow')
     showAction(`🟨 Sarı Kart`, `${currentMinute}' — ${yellowComment}`, 'sari', true, pLabel)
     addLog(currentMinute, teamIdx, playerDigit, 'sari', `Sarı Kart — ${player.name}`)
   }
 
   renderPlayersStatus()
-  pullPhase = 'waiting'
+  setPullPhase('waiting')
   setChronoHint('waiting')
 }
 
@@ -441,10 +443,11 @@ function _giveRedCard(teamIdx, playerDigit) {
   sounds.card()
 
   const redComment = pickCommentary('card_red')
+  playCommentary('card_red')
   showAction(`🟥 Kırmızı Kart!`, `${currentMinute}' — ${redComment}`, 'kart', true, pLabel)
   addLog(currentMinute, teamIdx, playerDigit, 'kart', `Kırmızı Kart — ${player.name}`)
   renderPlayersStatus()
-  pullPhase = 'waiting'
+  setPullPhase('waiting')
   setChronoHint('waiting')
 }
 
@@ -532,9 +535,9 @@ export function continueAction() {
     goToFulltime(); return
   }
 
-  pullPhase      = 'player'
   selectedPlayer = null
   selectedAction = null
+  setPullPhase('player')
   setChronoHint('player')
   updateMatchUI(currentMinute)
 }
@@ -555,7 +558,6 @@ export function startSecondHalf() {
   state.turCount   = 0
   currentMinute    = 46
 
-  pullPhase      = 'player'
   selectedPlayer = null
   selectedAction = null
 
@@ -563,6 +565,7 @@ export function startSecondHalf() {
   showScreen('match')
   updateMatchUI(currentMinute)
   renderPlayersStatus()
+  setPullPhase('player')
   setChronoHint('player')
 }
 
@@ -610,7 +613,6 @@ export function startExtraTime() {
   state.turCount   = 0
   currentMinute    = isFirstHalf ? 90 : 97
 
-  pullPhase      = 'player'
   selectedPlayer = null
   selectedAction = null
 
@@ -618,6 +620,7 @@ export function startExtraTime() {
   showScreen('match')
   updateMatchUI(currentMinute)
   renderPlayersStatus()
+  setPullPhase('player')
   setChronoHint('player')
 }
 
@@ -632,6 +635,7 @@ export function goToFulltime() {
 }
 
 export function newMatch() {
+  _clearAutoContinue()
   pullPhase      = 'player'
   selectedPlayer = null
   selectedAction = null

@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  
 
   <!-- ══════════════════════════════
        CONFIG SCREEN
@@ -28,9 +29,10 @@
       <div class="cfg-grid">
 
         <!-- TAKIM 0 -->
+        <div class="cfg-team-wrap">
+          <div class="cfg-team-label home-label">EV SAHİBİ</div>
         <div class="nb-card cfg-team" id="team0-config">
           <div class="cfg-team-header home-header">
-            <span class="team-badge home-badge">EV SAHİBİ</span>
 
             <!-- Hazır takım seçici -->
             <div class="cfg-preset-row">
@@ -74,6 +76,7 @@
           </div>
           <div class="cfg-players" id="team0-players"></div>
         </div>
+        </div>
 
         <!-- VS -->
         <div class="cfg-vs">
@@ -81,9 +84,10 @@
         </div>
 
         <!-- TAKIM 1 -->
+        <div class="cfg-team-wrap">
+          <div class="cfg-team-label away-label">DEPLASMAN</div>
         <div class="nb-card cfg-team" id="team1-config">
           <div class="cfg-team-header away-header">
-            <span class="team-badge away-badge">DEPLASMAN</span>
 
             <!-- Hazır takım seçici -->
             <div class="cfg-preset-row">
@@ -127,11 +131,12 @@
           </div>
           <div class="cfg-players" id="team1-players"></div>
         </div>
+        </div>
 
       </div><!-- /cfg-grid -->
 
       <button class="btn btn-cta" onclick="startMatch()">
-        ⚽ MAÇI BAŞLAT
+        <span>⚽</span> MAÇI BAŞLAT
       </button>
 
     </div>
@@ -160,6 +165,7 @@
       <div class="match-team-block away-side">
         <span class="match-team-name away-name" id="match-team1-name">Deplasman</span>
         <span class="match-score away-score" id="score1">0</span>
+        <button id="dark-toggle" onclick="toggleDark()" title="Gece/Gündüz modu" aria-label="Tema değiştir"></button>
       </div>
     </header>
 
@@ -175,22 +181,43 @@
       <!-- ORTA: Oyun Alanı -->
       <main class="center-col">
 
+        <!-- Faz Progress Bar -->
+        <div class="phase-bar">
+          <div class="phase-step active" data-step="1">
+            <span class="phase-step-num">1</span>
+            <span class="phase-step-lbl">Oyuncu</span>
+          </div>
+          <div class="phase-bar-line"></div>
+          <div class="phase-step" data-step="2">
+            <span class="phase-step-num">2</span>
+            <span class="phase-step-lbl">Aksiyon</span>
+          </div>
+          <div class="phase-bar-line"></div>
+          <div class="phase-step" data-step="3">
+            <span class="phase-step-num">3</span>
+            <span class="phase-step-lbl">Sonuç</span>
+          </div>
+        </div>
+
         <!-- Kronometre -->
         <div class="nb-card chrono-card">
           <div class="chrono-display" id="chrono-display">00.00</div>
-          <p class="chrono-hint" id="chrono-hint">SPACE veya butona bas → başlat &amp; durdur</p>
+          <p class="chrono-hint" id="chrono-hint">▶ Butona bas → kronometreyi başlat, sonra durdur!</p>
           <button class="btn btn-pull" id="btn-pull" onclick="handlePull()">
-            <span id="btn-pull-text">⚽ ÇEK!</span>
+            <span id="btn-pull-text">▶ BAŞLAT</span>
           </button>
+        </div>
+
+        <!-- Sıra Geçişi Animasyonu -->
+        <div id="turn-skip-anim" class="turn-skip-anim">
+          <span class="skip-icon">⏭</span>
+          <span class="skip-text">SÜRE DOLDU — SIRA GEÇİYOR</span>
         </div>
 
         <!-- Aksiyon Paneli -->
         <div class="nb-card action-card" id="action-panel" style="display:none;">
           <div class="action-result" id="action-result"></div>
           <div class="action-subtitle" id="action-player"></div>
-          <button class="btn btn-continue" id="btn-continue" onclick="continueAction()">
-            ▶ DEVAM
-          </button>
         </div>
 
         <!-- Aksiyon Referans Tablosu -->

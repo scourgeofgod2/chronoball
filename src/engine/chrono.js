@@ -1,28 +1,17 @@
-// ============================================================
-//  ChronoBall — Kronometre Modülü
-//  Kronometre kaldığı yerden devam eder — reset yalnızca
-//  maç başında ve yarı başında çağrılır.
-//  v2: 12 saniyelik auto-stop + geri sayım callback
-// ============================================================
-
-const MAX_RUN_MS = 12000  // 12 saniye — bu süre sonunda otomatik durdurulur
-
 let interval    = null
 let startTime   = null
-let elapsed     = 0      // ms — birikmiş süre
+let elapsed     = 0
 let running     = false
 
-let onTick     = (_displayText, _running, _countdown) => {}
-let onAutoStop = null    // () => void — zaman aşımında çağrılır
+let onTick = (_displayText, _running) => {}
 
-export function chronoInit(tickCallback, autoStopCallback) {
-  onTick     = tickCallback
-  onAutoStop = autoStopCallback || null
+export function chronoInit(tickCallback) {
+  onTick = tickCallback
 }
 
 export function chronoStart() {
   if (running) return
-  startTime = Date.now() - elapsed   // kaldığı yerden devam
+  startTime = Date.now() - elapsed
   running   = true
   interval  = setInterval(_tick, 10)
 }
@@ -31,10 +20,9 @@ export function chronoStop() {
   if (!running) return 0
   clearInterval(interval)
   interval = null
-  elapsed  = Date.now() - startTime  // kesin değeri kaydet
+  elapsed  = Date.now() - startTime
   running  = false
-  // DOM'u durdurulmuş değerle güncelle
-  onTick(getDisplayText(), false, null)
+  onTick(getDisplayText(), false)
   return getLastDigit()
 }
 
@@ -44,7 +32,7 @@ export function chronoReset() {
   running   = false
   elapsed   = 0
   startTime = null
-  onTick('00.00', false, null)
+  onTick('00.00', false)
 }
 
 export function isRunning() { return running }
@@ -64,27 +52,13 @@ export function getLastDigit() {
 export function calcMinute(phase) {
   const totalCs  = Math.floor(elapsed / 10)
   const dispSecs = Math.floor(totalCs / 100) % 100
-  if (phase === 'second-half')    return Math.min(45 + dispSecs + 1, 90)
-  if (phase === 'extra-time-1')   return Math.min(90 + dispSecs + 1, 97)
-  if (phase === 'extra-time-2')   return Math.min(97 + dispSecs + 1, 105)
+  if (phase === 'second-half')  return Math.min(45 + dispSecs + 1, 90)
+  if (phase === 'extra-time-1') return Math.min(90 + dispSecs + 1, 97)
+  if (phase === 'extra-time-2') return Math.min(97 + dispSecs + 1, 105)
   return Math.min(dispSecs + 1, 45)
 }
 
 function _tick() {
   elapsed = Date.now() - startTime
-
-  // Auto-stop: maksimum süre aşıldıysa
-  if (elapsed >= MAX_RUN_MS) {
-    // elapsed'ı sabitleme — son anlık değerde bırak, böylece son rakam rastgele kalır
-    clearInterval(interval)
-    interval = null
-    running  = false
-    onTick(getDisplayText(), false, null)
-    if (onAutoStop) onAutoStop()
-    return
-  }
-
-  const remaining = MAX_RUN_MS - elapsed
-  const countdownSecs = Math.ceil(remaining / 1000)
-  onTick(getDisplayText(), true, countdownSecs)
+  onTick(getDisplayText(), true)
 }

@@ -5,7 +5,7 @@
 import { setState, createTeam }       from './state/gameState.js'
 import {
   chronoInit, chronoStart, chronoStop,
-  chronoReset, isRunning, getLastDigit,
+  chronoReset, isRunning,
 }                                      from './engine/chrono.js'
 import {
   pullPhase, setPullPhase,
@@ -31,40 +31,13 @@ import { applyFormation as _applyFormation, buildFormationSelectors, applyTactic
 import { buildShareCard }              from './ui/resultScreens.js'
 
 // ── Kronometre tick → DOM ────────────────────────────────────
-chronoInit(
-  // tickCallback: (displayText, running, countdownSecs)
-  (displayText, running, countdownSecs) => {
-    const disp = document.getElementById('chrono-display')
-    if (!disp) return
-    disp.textContent = displayText
-    if (running) disp.classList.add('running')
-    else         disp.classList.remove('running')
-
-    // Geri sayım uyarısı
-    const hint   = document.getElementById('chrono-hint')
-    const btnTxt = document.getElementById('btn-pull-text')
-    if (running && countdownSecs !== null && countdownSecs <= 5) {
-      if (hint) {
-        hint.textContent = `⚠️ ${countdownSecs} saniye — DURDUR!`
-        hint.classList.add('hint-warning')
-      }
-      if (btnTxt) btnTxt.textContent = `🛑 DURDUR! (${countdownSecs})`
-    } else if (running && countdownSecs !== null) {
-      if (hint) hint.classList.remove('hint-warning')
-    } else if (!running) {
-      if (hint) hint.classList.remove('hint-warning')
-    }
-  },
-  // autoStopCallback: 12 saniye dolunca otomatik durdur
-  () => {
-    const btnTxt = document.getElementById('btn-pull-text')
-    if (btnTxt) btnTxt.textContent = '⚽ ÇEK!'
-    const hint = document.getElementById('chrono-hint')
-    if (hint) hint.classList.remove('hint-warning')
-    // chrono.js zaten durdurdu — elapsed son değerde, getLastDigit() hazır
-    processDigit(getLastDigit())
-  }
-)
+chronoInit((displayText, running) => {
+  const disp = document.getElementById('chrono-display')
+  if (!disp) return
+  disp.textContent = displayText
+  if (running) disp.classList.add('running')
+  else         disp.classList.remove('running')
+})
 
 // ── Config ekranını hazırla ──────────────────────────────────
 buildPlayerInputs()
@@ -124,29 +97,74 @@ window.startMatch = function () {
     shootout: { scores:[0,0], round:0, maxRounds:5 },
   })
 
-  setPullPhase('player')
   chronoReset()
   showScreen('match')
   updateMatchUI(1)
   renderPlayersStatus()
+  setPullPhase('player')
   setChronoHint('player')
+  const btnTxt = document.getElementById('btn-pull-text')
+  if (btnTxt) btnTxt.textContent = '▶ BAŞLAT'
 }
 
 window.handlePull = function () {
-  if (pullPhase === 'waiting') return
+  if (pullPhase === 'waiting') {
+    _continueAction()
+    return
+  }
 
   const btnTxt = document.getElementById('btn-pull-text')
+  const disp   = document.getElementById('chrono-display')
 
   if (isRunning()) {
+    if (window.__skipTimer) { clearTimeout(window.__skipTimer); window.__skipTimer = null }
+    cancelAutoContinue()
     const digit = chronoStop()
-    const disp  = document.getElementById('chrono-display')
     if (disp) disp.classList.remove('running')
+
+    _flashDigit(digit)
+
     if (btnTxt) btnTxt.textContent = '⚽ ÇEK!'
     processDigit(digit)
   } else {
-    if (pullPhase === 'player') hideAction()
-    if (btnTxt) btnTxt.textContent = '🛑 DURDUR!'
     chronoStart()
+    if (disp) disp.classList.add('running')
+    if (btnTxt) {
+      if (pullPhase === 'player' || pullPhase === 'shootout') btnTxt.textContent = '🛑 DURDUR!'
+      else if (pullPhase === 'action') btnTxt.textContent = '🛑 DURDUR! (Aksiyon)'
+      else if (pullPhase === 'third')  btnTxt.textContent = '🛑 DURDUR! (Sonuç)'
+    }
+    _startSkipTimer()
+  }
+}
+
+function _startSkipTimer() {
+  cancelAutoContinue()
+  const timer = setTimeout(() => {
+    if (!isRunning()) return
+    chronoStop()
+    const disp = document.getElementById('chrono-display')
+    if (disp) disp.classList.remove('running')
+    _showTurnSkipAnim()
+    setTimeout(() => {
+      import('./engine/match.js').then(m => m.continueAction())
+    }, 1200)
+  }, 3000)
+  window.__skipTimer = timer
+}
+
+function _showTurnSkipAnim() {
+  const el = document.getElementById('turn-skip-anim')
+  if (!el) return
+  el.classList.remove('skip-active')
+  void el.offsetWidth
+  el.classList.add('skip-active')
+  setTimeout(() => el.classList.remove('skip-active'), 1100)
+}
+
+function _flashDigit(digit) {
+  if (navigator.vibrate) {
+    navigator.vibrate(50);
   }
 }
 
@@ -196,6 +214,24 @@ window.applyTacticFormation = function (teamIdx) {
 window.shareResult = async function () {
   await buildShareCard()
 }
+
+// ══════════════════════════════════════════════════════════════
+//  Dark Mode Toggle
+// ══════════════════════════════════════════════════════════════
+window.toggleDark = function () {
+  const isDark = document.documentElement.classList.toggle('dark')
+  try { localStorage.setItem('cb-dark', isDark ? '1' : '0') } catch (_) {}
+}
+
+;(function () {
+  try {
+    const saved = localStorage.getItem('cb-dark')
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    if (saved === '1' || (saved === null && prefersDark)) {
+      document.documentElement.classList.add('dark')
+    }
+  } catch (_) {}
+})()
 
 // ══════════════════════════════════════════════════════════════
 //  Klavye Kısayolları

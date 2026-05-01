@@ -58,12 +58,24 @@ export function applyFormation(teamIdx) {
   const positions = FORMATIONS[formation]
   if (!positions) return
 
-  for (let i = 0; i < 10; i++) {
-    const posEl = document.getElementById(`team${teamIdx}-player${i}-pos`)
-    if (posEl) posEl.value = positions[i]
+  // Forvet limiti kontrolü (max 5)
+  const fCount = positions.filter(p => p === 'F').length
+  if (fCount > 5) {
+    alert(`⚠️ Maksimum 5 forvet olabilir (şu an ${fCount} forvet var). Lütfen başka bir formasyon seçin.`)
+    // Varsayılan formasyona geri dön
+    sel.value = '4-3-2'
+    applyFormation(teamIdx)
+    return
   }
 
-  // Görsel taktik tahtasını güncelle
+  // Oyuncu pozisyon select'lerini güncelle
+  for (let i = 0; i < 10; i++) {
+    const posSel = document.getElementById(`team${teamIdx}-player${i}-pos`)
+    if (posSel) {
+      posSel.value = positions[i]
+    }
+  }
+
   _renderFormationPitch(teamIdx, positions, formation)
 }
 
@@ -142,17 +154,16 @@ export function buildFormationSelectors() {
     container.innerHTML = `
       <div class="cfg-formation-group">
         <label class="field-label">FORMASYON</label>
-        <div class="cfg-formation-row">
-          <select id="team${t}-formation" class="select select-sm"
-                  onchange="applyFormation(${t})">
-            ${opts}
-          </select>
-          <div id="team${t}-formation-board" class="formation-board-wrap"></div>
-        </div>
+        <select id="team${t}-formation" class="select select-sm"
+                onchange="applyFormation(${t})">
+          ${opts}
+        </select>
+        <div id="team${t}-formation-board" class="formation-board-wrap"></div>
       </div>
     `
 
-    // Varsayılan formasyonu uygula
-    applyFormation(t)
+    const defaultFormation = '4-3-2'
+    const defaultPositions = FORMATIONS[defaultFormation]
+    _renderFormationPitch(t, defaultPositions, defaultFormation)
   }
 }
