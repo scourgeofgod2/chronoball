@@ -2,7 +2,7 @@
 //  ChronoBall — Ana Giriş Noktası (main.js)
 // ============================================================
 
-import { setState, createTeam }       from './state/gameState.js'
+import { setState, getState, createTeam } from './state/gameState.js'
 import {
   chronoInit, chronoStart, chronoStop,
   chronoReset, isRunning,
@@ -93,6 +93,7 @@ window.startMatch = function () {
       0: { goals:0, yellowCards:0, redCards:0, penalties:0, corners:0, fouls:0 },
       1: { goals:0, yellowCards:0, redCards:0, penalties:0, corners:0, fouls:0 },
     },
+    gameMode: _selectedGameMode,
     tactics: { 0: tactic0, 1: tactic1 },
     shootout: { scores:[0,0], round:0, maxRounds:5 },
   })
@@ -183,12 +184,28 @@ window.startExtraTime = function () {
   _startExtraTime()
 }
 
+let _selectedGameMode = 'quick'
+
+window.selectGameMode = function (mode) {
+  _selectedGameMode = mode
+  if (mode === 'quick') {
+    showScreen('config')
+  } else {
+    // Lig Modu -> Draft ekranına geç
+    import('./ui/draft.js').then(draft => {
+      draft.initDraftScreen()
+      showScreen('draft')
+    })
+  }
+}
+
 window.newMatch = function () {
   chronoReset()
   _newMatch()
   buildPlayerInputs()
   buildPresetOptions()
   buildFormationSelectors()
+  showScreen('mainmenu')
 }
 
 window.applyPreset = function (teamIdx) {
@@ -214,6 +231,33 @@ window.applyTacticFormation = function (teamIdx) {
 window.shareResult = async function () {
   await buildShareCard()
 }
+
+// ══════════════════════════════════════════════════════════════
+//  Nasıl Oynanır — Modal
+// ══════════════════════════════════════════════════════════════
+window.openHowToPlay = function () {
+  const overlay = document.getElementById('howto-overlay')
+  if (overlay) overlay.classList.add('open')
+  document.body.style.overflow = 'hidden'
+}
+
+window.closeHowToPlay = function (e) {
+  if (e && e.target !== document.getElementById('howto-overlay')) return
+  const overlay = document.getElementById('howto-overlay')
+  if (overlay) overlay.classList.remove('open')
+  document.body.style.overflow = ''
+}
+
+// ESC tuşu ile kapat
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') {
+    const overlay = document.getElementById('howto-overlay')
+    if (overlay && overlay.classList.contains('open')) {
+      overlay.classList.remove('open')
+      document.body.style.overflow = ''
+    }
+  }
+})
 
 // ══════════════════════════════════════════════════════════════
 //  Dark Mode Toggle

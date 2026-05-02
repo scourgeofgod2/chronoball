@@ -6,6 +6,7 @@ export function createInitialState() {
   return {
     phase:      'idle',   // idle | first-half | halftime | second-half
                           // extra-time | penalty-shootout | fulltime
+    gameMode:   'quick',  // 'quick' = Tek Maç | 'league' = Lig Modu
     activeTeam: 0,
     turCount:   0,
     teams:      [],
@@ -22,11 +23,40 @@ export function createInitialState() {
 }
 
 /**
+ * Pozisyona göre varsayılan rating değerleri döner (0-100 arası).
+ * SHO: Şut gücü, DEF: Savunma, GK: Kalecilik, PAC: Hız, PHY: Fizik
+ */
+export function defaultRatings(pos) {
+  const base = {
+    K:  { sho: 25, def: 50, gk: 80, pac: 45, phy: 60 },
+    D:  { sho: 35, def: 75, gk: 20, pac: 55, phy: 70 },
+    OS: { sho: 55, def: 55, gk: 20, pac: 65, phy: 65 },
+    F:  { sho: 78, def: 30, gk: 15, pac: 75, phy: 65 },
+  }
+  return base[pos] || base['OS']
+}
+
+/**
  * @param {string} name
  * @param {'K'|'D'|'OS'|'F'} pos
+ * @param {object} [ratings] - Opsiyonel: { sho, def, gk, pac, phy }
  */
-export function createPlayer(name, pos = 'OS') {
-  return { name, pos, yellowCards: 0, redCard: false, goals: 0 }
+export function createPlayer(name, pos = 'OS', ratings = null) {
+  const r = ratings || defaultRatings(pos)
+  return {
+    name,
+    pos,
+    yellowCards: 0,
+    redCard:     false,
+    goals:       0,
+    ratings: {
+      sho: r.sho ?? 55,
+      def: r.def ?? 55,
+      gk:  r.gk  ?? 20,
+      pac: r.pac ?? 60,
+      phy: r.phy ?? 65,
+    },
+  }
 }
 
 /**

@@ -13,12 +13,134 @@
   
 
   <!-- ══════════════════════════════
+       HOW TO PLAY MODAL
+  ══════════════════════════════ -->
+  <div id="howto-overlay" class="howto-overlay" onclick="closeHowToPlay(event)">
+    <div class="howto-modal">
+      <div class="howto-header">
+        <span class="howto-title">📖 NASIL OYNANIR?</span>
+        <button class="howto-close" onclick="closeHowToPlay()">✕</button>
+      </div>
+
+      <div class="howto-body">
+
+        <div class="howto-step">
+          <div class="howto-step-num">1</div>
+          <div class="howto-step-content">
+            <div class="howto-step-title">⏱ Oyuncu Seçimi</div>
+            <div class="howto-step-desc">
+              "Başlat" butonuna bas, kronometre çalışmaya başlar. Tekrar basınca durur.
+              Milisaniyenin <strong>son rakamı (0–9)</strong> aktif takımın hangi oyuncusunun
+              aksiyona gireceğini belirler. Her tur bir takım topla buluşur.
+            </div>
+          </div>
+        </div>
+
+        <div class="howto-step">
+          <div class="howto-step-num">2</div>
+          <div class="howto-step-content">
+            <div class="howto-step-title">🎲 Aksiyon Seçimi</div>
+            <div class="howto-step-desc">
+              Oyuncu seçilince tekrar çekim yaparsın. Çıkan rakam aksiyonu belirler:
+            </div>
+            <div class="howto-action-grid">
+              <div class="howto-action-item howto-a-goal"><span>0</span>🚩 Uzak Frikik</div>
+              <div class="howto-action-item howto-a-normal"><span>1</span>🦵 Faul</div>
+              <div class="howto-action-item howto-a-warn"><span>2</span>🟨 Sarı Kart</div>
+              <div class="howto-action-item howto-a-danger"><span>3</span>🎯 Penaltı</div>
+              <div class="howto-action-item howto-a-goal"><span>4</span>🌀 Yakın Frikik</div>
+              <div class="howto-action-item howto-a-goal"><span>5</span>⚡ Serbest Vuruş</div>
+              <div class="howto-action-item howto-a-goal"><span>6</span>📐 Korner</div>
+              <div class="howto-action-item howto-a-star"><span>7</span>⚽ Direkt GOL!</div>
+              <div class="howto-action-item howto-a-danger"><span>8</span>🟥 Kırmızı Kart</div>
+              <div class="howto-action-item howto-a-normal"><span>9</span>🚫 Ofsayt</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="howto-step">
+          <div class="howto-step-num">3</div>
+          <div class="howto-step-content">
+            <div class="howto-step-title">🥅 Şut Sonucu</div>
+            <div class="howto-step-desc">
+              Penaltı, frikik veya korner olduysa <strong>3. bir çekim</strong> yaparsın.
+              Çıkan rakam, oyuncunun pozisyonu ve takımın taktiğine göre hesaplanan
+              "gol rakamı aralığı"na giriyorsa <strong>GOL!</strong> Girmiyorsa top dışarıda.
+            </div>
+          </div>
+        </div>
+
+        <div class="howto-tips">
+          <div class="howto-tips-title">💡 İpuçları</div>
+          <div class="howto-tip">🧤 <strong>Kaleci (K):</strong> En düşük gol ihtimali, ama sürpriz her zaman mümkün!</div>
+          <div class="howto-tip">🛡️ <strong>Defans (D):</strong> Düşük şans ama kartlar onları da vurabilir.</div>
+          <div class="howto-tip">⚙️ <strong>Orta Saha (OS):</strong> Dengeli — her şey mümkün.</div>
+          <div class="howto-tip">🔥 <strong>Forvet (F):</strong> En yüksek gol ihtimali, penaltılarda kral!</div>
+          <div class="howto-tip">⚔️ <strong>Hücum taktiği:</strong> Daha fazla gol fırsatı ama arkada boşluk var!</div>
+          <div class="howto-tip">🛡️ <strong>Defans taktiği:</strong> Rakip zor gol atar, ama sen de az üretirsin.</div>
+          <div class="howto-tip">⌨️ <strong>Kısayollar:</strong> SPACE = Başlat/Durdur · ENTER = Devam</div>
+        </div>
+
+      </div>
+
+      <button class="btn btn-cta howto-cta" onclick="closeHowToPlay()">Anladım, Oynayalım! ⚽</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       ANA MENÜ SCREEN
+  ══════════════════════════════ -->
+  <div id="screen-mainmenu" class="screen active">
+    <div class="mainmenu-wrap">
+      <header class="mainmenu-hero">
+        <div class="cfg-logo-row">
+          <span class="cfg-logo-icon">⚽</span>
+          <h1 class="cfg-logo-text">CHRONO<span class="cfg-logo-accent">BALL</span></h1>
+        </div>
+        <p class="cfg-subtitle">KRONOMETREYİ DURDUR — SAHANIN EFENDİSİ OL</p>
+      </header>
+
+      <div class="mainmenu-modes">
+        <button class="nb-card mainmenu-mode-card" onclick="selectGameMode('quick')">
+          <div class="mainmenu-mode-icon">⚡</div>
+          <div class="mainmenu-mode-title">TEK MAÇ</div>
+          <div class="mainmenu-mode-desc">
+            İki takım kur, hemen oyna!<br>
+            Takım isimlerini ve kadroyu ayarla,<br>
+            sonra kronometreyle maça başla.
+          </div>
+        </button>
+
+        <button class="nb-card mainmenu-mode-card mainmenu-mode-league" onclick="selectGameMode('league')">
+          <div class="mainmenu-mode-icon">🏆</div>
+          <div class="mainmenu-mode-title">LİG MODU</div>
+          <div class="mainmenu-mode-desc">
+            Bütçenle takımını kur!<br>
+            8 takımlı ligde 14 hafta boyunca<br>
+            şampiyonluk için mücadele et.
+          </div>
+          <div class="mainmenu-mode-badge">YENİ!</div>
+        </button>
+      </div>
+
+      <button class="btn btn-howto" onclick="openHowToPlay()" style="margin: 16px auto 0;">📖 Nasıl Oynanır?</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
        CONFIG SCREEN
   ══════════════════════════════ -->
-  <div id="screen-config" class="screen active">
+  <div id="screen-config" class="screen">
     <div class="cfg-wrap">
 
       <header class="cfg-hero">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px;">
+          <button class="btn btn-ghost btn-sm" onclick="newMatch()" style="opacity: 0.7;">
+            ⬅ Ana Menü
+          </button>
+          <button class="btn btn-howto" onclick="openHowToPlay()">📖 Nasıl Oynanır?</button>
+        </div>
+        
         <div class="cfg-logo-row">
           <span class="cfg-logo-icon">⚽</span>
           <h1 class="cfg-logo-text">CHRONO<span class="cfg-logo-accent">BALL</span></h1>
@@ -139,6 +261,139 @@
         <span>⚽</span> MAÇI BAŞLAT
       </button>
 
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       DRAFT / TRANSFER SCREEN
+  ══════════════════════════════ -->
+  <div id="screen-draft" class="screen">
+    <div class="cfg-wrap">
+      <header class="cfg-hero">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px;">
+          <button class="btn btn-ghost btn-sm" onclick="showScreen('mainmenu')" style="opacity: 0.7;">
+            ⬅ Ana Menü
+          </button>
+          <div class="budget-display" id="draft-budget" style="font-weight: 800; font-size: 1.2rem; color: var(--gold); background: var(--ink); padding: 8px 16px; border-radius: 8px;">
+            Bütçe: 10.0 M
+          </div>
+        </div>
+        <h1 class="cfg-logo-text" style="font-size: 2rem;">TAKIMINI KUR</h1>
+        <p class="cfg-subtitle">LİGDE MÜCADELE EDECEK 10 OYUNCUYU SEÇ</p>
+      </header>
+
+      <div class="cfg-grid" style="grid-template-columns: 1fr 1fr;">
+        <!-- Sol taraf: Formasyon ve Seçilenler -->
+        <div class="nb-card" style="padding: 20px;">
+          <div style="margin-bottom: 16px;">
+            <label class="field-label">TAKIM ADI</label>
+            <input type="text" id="draft-team-name" class="input" placeholder="Takım adı girin..." value="Benim Takım" />
+          </div>
+          <div style="margin-bottom: 16px; display: flex; gap: 10px;">
+            <div style="flex: 1;">
+              <label class="field-label">FORMASYON</label>
+              <select id="draft-formation" class="select" onchange="renderDraftSlots()">
+                <option value="5-3-1">🛡️🛡️ 5-3-1 (Tam Defans)</option>
+                <option value="4-4-1">🛡️ 4-4-1 (Savunma)</option>
+                <option value="4-3-2" selected>⚖️ 4-3-2 (Dengeli)</option>
+                <option value="3-4-2">⚙️ 3-4-2 (Orta Saha)</option>
+                <option value="4-2-3">⚔️ 4-2-3 (Hücum)</option>
+                <option value="3-3-3">🔥 3-3-3 (Tam Hücum)</option>
+                <option value="2-3-4">🔥🔥 2-3-4 (Ultra Hücum)</option>
+              </select>
+            </div>
+            <div style="flex: 1;">
+              <label class="field-label">TAKTİK</label>
+              <select id="draft-tactic" class="select">
+                <option value="attack">⚔️ Hücum</option>
+                <option value="balance" selected>⚖️ Denge</option>
+                <option value="defense">🛡️ Defans</option>
+              </select>
+            </div>
+          </div>
+          
+          <div id="draft-slots-container" style="display: flex; flex-direction: column; gap: 6px;">
+            <!-- Draft slotları JS ile dolacak -->
+          </div>
+
+          <button id="btn-complete-draft" class="btn btn-cta" style="width: 100%; margin-top: 20px;" onclick="completeDraft()" disabled>
+            LİGİ BAŞLAT
+          </button>
+        </div>
+
+        <!-- Sağ taraf: Oyuncu Marketi -->
+        <div class="nb-card" style="padding: 20px; display: flex; flex-direction: column; height: 600px;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 12px; font-weight: 800;">MARKET (Filtre: <span id="market-filter-label">Tümü</span>)</h3>
+          
+          <div style="display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px;">
+            <button class="btn btn-sm" onclick="filterMarket('ALL')">Tümü</button>
+            <button class="btn btn-sm" onclick="filterMarket('K')">K</button>
+            <button class="btn btn-sm" onclick="filterMarket('D')">D</button>
+            <button class="btn btn-sm" onclick="filterMarket('OS')">OS</button>
+            <button class="btn btn-sm" onclick="filterMarket('F')">F</button>
+          </div>
+
+          <div id="market-players-container" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+            <!-- Oyuncu market listesi JS ile dolacak -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       LEAGUE HUB SCREEN
+  ══════════════════════════════ -->
+  <div id="screen-league-hub" class="screen">
+    <div class="cfg-wrap">
+      <header class="cfg-hero">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px;">
+          <button class="btn btn-ghost btn-sm" onclick="showScreen('mainmenu')" style="opacity: 0.7;">
+            ⬅ Çıkış
+          </button>
+          <div class="budget-display" id="hub-week-display" style="font-weight: 800; font-size: 1.2rem; color: #fff; background: var(--home-grad); padding: 8px 16px; border-radius: 8px;">
+            HAFTA 1 / 14
+          </div>
+        </div>
+        <h1 class="cfg-logo-text" style="font-size: 2rem;">LİG MERKEZİ</h1>
+      </header>
+
+      <div class="cfg-grid" style="grid-template-columns: 1fr 1fr;">
+        <!-- Puan Tablosu -->
+        <div class="nb-card" style="padding: 20px;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 12px; font-weight: 800;">PUAN DURUMU</h3>
+          <table class="stats-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th style="text-align:left">S</th>
+                <th style="text-align:left">Takım</th>
+                <th>O</th>
+                <th>G</th>
+                <th>B</th>
+                <th>M</th>
+                <th>AV</th>
+                <th>P</th>
+              </tr>
+            </thead>
+            <tbody id="league-standings-body">
+              <!-- Puan durumu js ile dolacak -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Fikstür & Sonraki Maç -->
+        <div class="nb-card" style="padding: 20px; display: flex; flex-direction: column;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 12px; font-weight: 800;">BU HAFTANIN MAÇLARI</h3>
+          
+          <div id="league-fixtures-container" style="flex: 1; display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+            <!-- Fikstür JS ile dolacak -->
+          </div>
+
+          <button class="btn btn-cta" style="width: 100%;" onclick="playLeagueMatch()">
+            ⚽ MAÇA ÇIK
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

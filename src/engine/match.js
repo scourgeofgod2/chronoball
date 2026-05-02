@@ -10,6 +10,7 @@ import {
   calcGoalMult,
   calcFreekickNearMult,
   calcFreekickFarMult,
+  calcFreekickMult,
   calcPenaltyMult,
   goalDigitsFromMult,
   pickCommentary,
@@ -77,7 +78,6 @@ function _processPlayer(digit) {
   const player  = team.players[digit]
 
   if (player.redCard) {
-    sounds.card()
     showAction(
       `❌ Kırmızı Kartlı Oyuncu`,
       `Sıra ${state.teams[1 - teamIdx].name}'a geçti`,
@@ -145,10 +145,13 @@ function _processAction(digit) {
     case 'penalty': {
       sounds.click()
       state.stats[teamIdx].penalties++
-      const pm = calcPenaltyMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+      const _atkPlayer = state.teams[teamIdx].players[selectedPlayer.digit]
+      const pm = calcPenaltyMult(selectedPlayer.pos, atkTactic, defTactic, defTeam, _atkPlayer)
+      const penaltyComment = pickCommentary('action_penalty')
+      playCommentary('action_penalty')
       showAction(
         `🎯 Penaltı!`,
-        `Gol şansı: ${_chanceLabel(pm)} — Tekrar çek!`,
+        `${currentMinute}' — ${penaltyComment} Gol şansı: ${_chanceLabel(pm)} — Tekrar çek!`,
         'normal', false, pLabel
       )
       setPullPhase('third')
@@ -159,9 +162,11 @@ function _processAction(digit) {
     case 'freekick-near': {
       sounds.click()
       const nm = calcFreekickNearMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+      const fkNearComment = pickCommentary('action_freekick_near')
+      playCommentary('action_freekick_near')
       showAction(
         `🌀 Yakın Frikik!`,
-        `Tehlikeli bölge — Gol şansı: ${_chanceLabel(nm)} — Tekrar çek!`,
+        `${currentMinute}' — ${fkNearComment} Gol şansı: ${_chanceLabel(nm)} — Tekrar çek!`,
         'normal', false, pLabel
       )
       triggerAnimation('freekick', teamIdx === 0 ? 'home' : 'away')
@@ -173,9 +178,11 @@ function _processAction(digit) {
     case 'freekick-far': {
       sounds.click()
       const fm = calcFreekickFarMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+      const fkFarComment = pickCommentary('action_freekick_far')
+      playCommentary('action_freekick_far')
       showAction(
         `🚩 Uzak Frikik`,
-        `Gol şansı: ${_chanceLabel(fm)} — Tekrar çek!`,
+        `${currentMinute}' — ${fkFarComment} Gol şansı: ${_chanceLabel(fm)} — Tekrar çek!`,
         'normal', false, pLabel
       )
       triggerAnimation('freekick', teamIdx === 0 ? 'home' : 'away')
@@ -186,10 +193,12 @@ function _processAction(digit) {
 
     case 'freekick': {
       sounds.click()
-      const gm = calcGoalMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+      const gm = calcFreekickMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+      const fkComment = pickCommentary('action_freekick')
+      playCommentary('action_freekick')
       showAction(
         `⚡ Serbest Vuruş!`,
-        `Gol şansı: ${_chanceLabel(gm)} — Tekrar çek!`,
+        `${currentMinute}' — ${fkComment} Gol şansı: ${_chanceLabel(gm)} — Tekrar çek!`,
         'normal', false, pLabel
       )
       setPullPhase('third')
@@ -201,9 +210,11 @@ function _processAction(digit) {
       sounds.click()
       state.stats[teamIdx].corners++
       const cm = calcGoalMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+      const cornerComment = pickCommentary('action_corner')
+      playCommentary('action_corner')
       showAction(
         `📐 Korner!`,
-        `Gol şansı: ${_chanceLabel(cm)} — Tekrar çek!`,
+        `${currentMinute}' — ${cornerComment} Gol şansı: ${_chanceLabel(cm)} — Tekrar çek!`,
         'normal', false, pLabel
       )
       setPullPhase('third')
@@ -245,33 +256,36 @@ function _processThird(digit) {
 
   let mult, isGoal, label, icon, commentKey
 
+  const _atkPlayerObj = state.teams[teamIdx].players[selectedPlayer.digit]
+  const _gMode = state.gameMode || 'quick'
+
   if (aType === 'penalty') {
-    mult       = calcPenaltyMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+    mult       = calcPenaltyMult(selectedPlayer.pos, atkTactic, defTactic, defTeam, _atkPlayerObj, _gMode)
     isGoal     = goalDigitsFromMult(mult).includes(digit)
     label      = 'Penaltıdan'
     icon       = '🎯'
     commentKey = isGoal ? 'goal_penalty' : 'miss_penalty'
   } else if (aType === 'freekick-near') {
-    mult       = calcFreekickNearMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+    mult       = calcFreekickNearMult(selectedPlayer.pos, atkTactic, defTactic, defTeam, _atkPlayerObj, _gMode)
     isGoal     = goalDigitsFromMult(mult).includes(digit)
     label      = 'Yakın Frikikten'
     icon       = '🌀'
     commentKey = isGoal ? 'goal_freekick' : 'miss_freekick'
   } else if (aType === 'freekick-far') {
-    mult       = calcFreekickFarMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+    mult       = calcFreekickFarMult(selectedPlayer.pos, atkTactic, defTactic, defTeam, _atkPlayerObj, _gMode)
     isGoal     = goalDigitsFromMult(mult).includes(digit)
     label      = 'Uzak Frikikten'
     icon       = '🚩'
     commentKey = isGoal ? 'goal_freekick' : 'miss_freekick'
   } else if (aType === 'freekick') {
-    mult       = calcGoalMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+    mult       = calcFreekickMult(selectedPlayer.pos, atkTactic, defTactic, defTeam, _atkPlayerObj, _gMode)
     isGoal     = goalDigitsFromMult(mult).includes(digit)
     label      = 'Serbest Vuruştan'
     icon       = '⚡'
     commentKey = isGoal ? 'goal_freekick' : 'miss_freekick'
   } else {
     // corner
-    mult       = calcGoalMult(selectedPlayer.pos, atkTactic, defTactic, defTeam)
+    mult       = calcGoalMult(selectedPlayer.pos, atkTactic, defTactic, defTeam, _atkPlayerObj, _gMode)
     isGoal     = goalDigitsFromMult(mult).includes(digit)
     label      = 'Kornerden'
     icon       = '📐'
@@ -415,13 +429,13 @@ function _giveYellowCard(teamIdx, playerDigit) {
   if (player.yellowCards >= 2 && !player.redCard) {
     player.redCard = true
     state.stats[teamIdx].redCards++
-    sounds.card()
+    sounds.card()  // 2. sarı = kırmızı → düdük çalar
     const redComment = pickCommentary('card_red')
     playCommentary('card_red')
     showAction(`🟨🟥 2. Sarı = Kırmızı!`, `${currentMinute}' — ${redComment}`, 'kart', true, pLabel)
     addLog(currentMinute, teamIdx, playerDigit, 'kart', `2. Sarı → Kırmızı — ${player.name}`)
   } else {
-    sounds.card()
+    // Düz sarı kartta düdük çalmaz
     const yellowComment = pickCommentary('card_yellow')
     playCommentary('card_yellow')
     showAction(`🟨 Sarı Kart`, `${currentMinute}' — ${yellowComment}`, 'sari', true, pLabel)
@@ -525,10 +539,10 @@ export function continueAction() {
     }
     goToFulltime(); return
   }
-  if (state.phase === 'extra-time-1' && currentMinute >= 97 && state.turCount >= 3) {
+  if (state.phase === 'extra-time-1' && currentMinute >= 105 && state.turCount >= 3) {
     goToExtraTimeBreak(2); return  // Uzatma 2. yarısı
   }
-  if (state.phase === 'extra-time-2' && currentMinute >= 105 && state.turCount >= 3) {
+  if (state.phase === 'extra-time-2' && currentMinute >= 120 && state.turCount >= 3) {
     if (state.teams[0].score === state.teams[1].score) {
       startShootout(); return
     }
@@ -540,6 +554,64 @@ export function continueAction() {
   setPullPhase('player')
   setChronoHint('player')
   updateMatchUI(currentMinute)
+
+  // Lig modunda bot tur otomasyonu
+  _maybeBotTurn()
+}
+
+// ── BOT TUR OTOMASYONU ────────────────────────────────────────
+function _setBotPullLock(locked) {
+  const btn = document.getElementById('btn-pull')
+  if (!btn) return
+  if (locked) {
+    btn.disabled = true
+    btn.style.opacity = '0.4'
+    btn.style.cursor = 'not-allowed'
+  } else {
+    btn.disabled = false
+    btn.style.opacity = ''
+    btn.style.cursor = ''
+  }
+}
+
+function _maybeBotTurn() {
+  const state = getState()
+  if (state.gameMode !== 'league') return
+  const userIdx = (typeof state.userTeamIndex === 'number') ? state.userTeamIndex : 0
+  if (state.activeTeam === userIdx) {
+    _setBotPullLock(false)  // Kullanıcı sırası — butonu aç
+    return
+  }
+
+  // Bot sırası — butonu kapat ve kısa gecikmeyle başlat
+  _setBotPullLock(true)
+  setTimeout(() => _botStep(), 700)
+}
+
+let _botStepTimer = null
+
+function _botStep() {
+  const state = getState()
+  const userIdx = (typeof state.userTeamIndex === 'number') ? state.userTeamIndex : 0
+  if (state.activeTeam === userIdx) return  // Artık kullanıcı sırası, dur
+
+  if (pullPhase === 'player' || pullPhase === 'action' || pullPhase === 'third' || pullPhase === 'shootout') {
+    // Kronometre başlat — görsel olarak ilerliyormuş gibi görünsün
+    chronoStart()
+    // Rastgele 400-900ms arasında bekle, sonra durdur ve son rakamı al
+    const holdMs = 400 + Math.floor(Math.random() * 500)
+    _botStepTimer = setTimeout(() => {
+      const digit = chronoStop()  // Kronometreyi durdur, son rakamı al
+      processDigit(digit)
+      // Bir sonraki aşama gerekiyorsa devam et
+      if (pullPhase === 'action' || pullPhase === 'third') {
+        _botStepTimer = setTimeout(() => _botStep(), 600)
+      } else if (pullPhase === 'waiting') {
+        // Bot turu bitti, otomatik devam et
+        _botStepTimer = setTimeout(() => continueAction(), 1200)
+      }
+    }, holdMs)
+  }
 }
 
 // ── DEVRE ARASI ───────────────────────────────────────────────
@@ -567,11 +639,12 @@ export function startSecondHalf() {
   renderPlayersStatus()
   setPullPhase('player')
   setChronoHint('player')
+  _maybeBotTurn()
 }
 
 // ── UZATMA DEVRESİ ─────────────────────────────────────────────
 /**
- * @param {1|2} half - 1 = Uzatma 1. yarısı (90-97'), 2 = Uzatma 2. yarısı (97-105')
+ * @param {1|2} half - 1 = Uzatma 1. yarısı (90-105'), 2 = Uzatma 2. yarısı (105-120')
  */
 export function goToExtraTimeBreak(half) {
   const state = getState()
@@ -594,11 +667,11 @@ export function goToExtraTimeBreak(half) {
   if (half === 1) {
     state.phase = 'extra-time-break-1'
     if (heading) heading.textContent = 'Beraberlik! Uzatma 1. Yarısı Başlıyor'
-    if (info)    info.textContent    = '90-97. dakikalar arası oynanacak.'
+    if (info)    info.textContent    = '90-105. dakikalar arası oynanacak.'
   } else {
     state.phase = 'extra-time-break-2'
     if (heading) heading.textContent = 'Beraberlik! Uzatma 2. Yarısı Başlıyor'
-    if (info)    info.textContent    = '97-105. dakikalar arası oynanacak.'
+    if (info)    info.textContent    = '105-120. dakikalar arası oynanacak.'
   }
 
   showScreen('extratime')
@@ -611,7 +684,7 @@ export function startExtraTime() {
   state.phase      = isFirstHalf ? 'extra-time-1' : 'extra-time-2'
   state.activeTeam = 1 - state.activeTeam
   state.turCount   = 0
-  currentMinute    = isFirstHalf ? 90 : 97
+  currentMinute    = isFirstHalf ? 90 : 105
 
   selectedPlayer = null
   selectedAction = null
@@ -622,6 +695,7 @@ export function startExtraTime() {
   renderPlayersStatus()
   setPullPhase('player')
   setChronoHint('player')
+  _maybeBotTurn()
 }
 
 // ── MAÇ SONU ──────────────────────────────────────────────────

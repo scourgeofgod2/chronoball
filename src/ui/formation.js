@@ -73,6 +73,10 @@ export function applyFormation(teamIdx) {
     const posSel = document.getElementById(`team${teamIdx}-player${i}-pos`)
     if (posSel) {
       posSel.value = positions[i]
+      // Formasyona bağlı kaldığı için disabled yapıyoruz
+      posSel.disabled = true
+      posSel.style.opacity = '0.7'
+      posSel.style.cursor = 'not-allowed'
     }
   }
 

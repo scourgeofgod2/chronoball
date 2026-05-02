@@ -46,24 +46,54 @@ export const DEFENSE_TACTIC_MODS = {
 // ── DEFANS KALİTESİ ÇARPANI ─────────────────────────────────
 /**
  * Rakibin kadro kompozisyonunu değerlendirip gol atma kolaylığını döner.
- * Düşük değer = rakibin savunması güçlü (gol atmak zor)
- * Yüksek değer = rakibin savunması zayıf (gol atmak kolay)
+ * Artık oyuncuların DEF ve GK ratinglerini de hesaba katar.
  *
  * @param {Object} defTeam - savunan takım objesi
  * @returns {number} çarpan (0.55 – 1.40 arasında)
  */
-export function calcDefenseQualityMod(defTeam) {
+export function calcDefenseQualityMod(defTeam, gameMode = 'quick') {
   if (!defTeam) return 1.0
 
   const active    = defTeam.players.filter(p => !p.redCard)
-  const hasKeeper = active.some(p => p.pos === 'K')
-  const defCount  = active.filter(p => p.pos === 'D').length
+  const keeper    = active.find(p => p.pos === 'K')
+  const defenders = active.filter(p => p.pos === 'D')
 
   let mod = 1.0
-  if (!hasKeeper) mod += 0.25                   // Kaleci yoksa +25% kolay gol
-  mod -= Math.min(4, defCount) * 0.04           // Her defans: -4% (max 4 = -16%)
+
+  if (!keeper) {
+    mod += 0.25
+  } else if (gameMode === 'league') {
+    // Lig modunda kalecinin GK ratingleri hesaba katılır
+    const gkRating = keeper.ratings?.def ?? 75
+    mod -= (gkRating - 75) * 0.003
+  }
+
+  if (gameMode === 'league') {
+    // Lig modunda defans oyuncularının DEF ratingleri hesaba katılır
+    defenders.forEach(d => {
+      const defRating = d.ratings?.def ?? 75
+      mod -= (defRating / 75) * 0.04
+    })
+  } else {
+    // Tek maç modunda: sadece defans sayısına bakılır (eski sistem)
+    mod -= Math.min(4, defenders.length) * 0.04
+  }
 
   return Math.max(0.55, Math.min(1.40, mod))
+}
+
+// ── OYUNCU STAT ÇARPANLARI (5 özellik: atk, def, mid, fk, pen) ─
+/** ATK: Genel şut/gol gücü — gol ve korner çarpanını etkiler. */
+export function playerAtkMod(atk = 55) {
+  return Math.max(0.75, Math.min(1.20, 1.0 + (atk - 55) * 0.005))
+}
+/** FK: Yakın/uzak frikik ve serbest vuruş çarpanını etkiler. Korneri etkilemez. */
+export function playerFkMod(fk = 55) {
+  return Math.max(0.75, Math.min(1.25, 1.0 + (fk - 55) * 0.006))
+}
+/** PEN: Penaltı çarpanını doğrudan etkiler. */
+export function playerPenMod(pen = 55) {
+  return Math.max(0.75, Math.min(1.25, 1.0 + (pen - 55) * 0.007))
 }
 
 // ── GOL ÇARPANI HESAPLAMA ────────────────────────────────────
@@ -73,49 +103,68 @@ export function calcDefenseQualityMod(defTeam) {
  * @param {string}      atkTactic  - saldıran takım taktiği
  * @param {string}      defTactic  - savunan takım taktiği
  * @param {Object|null} defTeam    - savunan takım objesi
+ * @param {Object|null} player     - saldıran oyuncu objesi (ratings için)
  */
-export function calcGoalMult(pos, atkTactic, defTactic, defTeam) {
+export function calcGoalMult(pos, atkTactic, defTactic, defTeam, player = null, gameMode = 'quick') {
   const base      = POS_WEIGHTS[pos]?.goalMult ?? 0.5
   const atkMod    = ATTACK_TACTIC_MODS[atkTactic]  ?? 1.0
   const defTacMod = DEFENSE_TACTIC_MODS[defTactic] ?? 1.0
-  const defQual   = calcDefenseQualityMod(defTeam)
-  return Math.min(0.95, base * atkMod * defTacMod * defQual)
+  const defQual   = calcDefenseQualityMod(defTeam, gameMode)
+  const shotMod   = (gameMode === 'league' && player?.ratings) ? playerAtkMod(player.ratings.atk) : 1.0
+  return Math.min(0.95, base * atkMod * defTacMod * defQual * shotMod)
 }
 
 /**
  * Yakın frikik çarpanı — ceza sahası kenarı, tehlikeli bölge
  */
-export function calcFreekickNearMult(pos, atkTactic, defTactic, defTeam) {
+export function calcFreekickNearMult(pos, atkTactic, defTactic, defTeam, player = null, gameMode = 'quick') {
   const base      = POS_WEIGHTS[pos]?.goalMult ?? 0.5
   const atkMod    = ATTACK_TACTIC_MODS[atkTactic]  ?? 1.0
   const defTacMod = DEFENSE_TACTIC_MODS[defTactic] ?? 1.0
-  const defQual   = calcDefenseQualityMod(defTeam)
+  const defQual   = calcDefenseQualityMod(defTeam, gameMode)
   const posMod    = FREEKICK_NEAR_MODS[pos] ?? 1.0
-  return Math.min(0.95, base * atkMod * defTacMod * defQual * posMod)
+  const fkMod     = (gameMode === 'league' && player?.ratings) ? playerFkMod(player.ratings.fk) : 1.0
+  return Math.min(0.95, base * atkMod * defTacMod * defQual * posMod * fkMod)
 }
 
 /**
  * Uzak frikik çarpanı — standart mesafe
  */
-export function calcFreekickFarMult(pos, atkTactic, defTactic, defTeam) {
+export function calcFreekickFarMult(pos, atkTactic, defTactic, defTeam, player = null, gameMode = 'quick') {
   const base      = POS_WEIGHTS[pos]?.goalMult ?? 0.5
   const atkMod    = ATTACK_TACTIC_MODS[atkTactic]  ?? 1.0
   const defTacMod = DEFENSE_TACTIC_MODS[defTactic] ?? 1.0
-  const defQual   = calcDefenseQualityMod(defTeam)
+  const defQual   = calcDefenseQualityMod(defTeam, gameMode)
   const posMod    = FREEKICK_FAR_MODS[pos] ?? 1.0
-  return Math.min(0.90, base * atkMod * defTacMod * defQual * posMod)
+  const fkMod     = (gameMode === 'league' && player?.ratings) ? playerFkMod(player.ratings.fk) : 1.0
+  return Math.min(0.90, base * atkMod * defTacMod * defQual * posMod * fkMod)
+}
+
+/**
+ * Serbest vuruş çarpanı (action 5, 'freekick') — FK özelliğini kullanır.
+ * Korner bu fonksiyonu kullanmaz (korner calcGoalMult + ATK kullanır).
+ */
+export function calcFreekickMult(pos, atkTactic, defTactic, defTeam, player = null, gameMode = 'quick') {
+  const base      = POS_WEIGHTS[pos]?.goalMult ?? 0.5
+  const atkMod    = ATTACK_TACTIC_MODS[atkTactic]  ?? 1.0
+  const defTacMod = DEFENSE_TACTIC_MODS[defTactic] ?? 1.0
+  const defQual   = calcDefenseQualityMod(defTeam, gameMode)
+  const fkMod     = (gameMode === 'league' && player?.ratings) ? playerFkMod(player.ratings.fk) : 1.0
+  return Math.min(0.90, base * atkMod * defTacMod * defQual * fkMod)
 }
 
 /**
  * Penaltı çarpanı — taktik ve kadro etkisi azaltılmış (1'e 1 durum)
  */
-export function calcPenaltyMult(pos, atkTactic, defTactic, defTeam) {
+export function calcPenaltyMult(pos, atkTactic, defTactic, defTeam, player = null, gameMode = 'quick') {
   const base     = POS_WEIGHTS[pos]?.penaltyMult ?? 0.70
   const atkMod   = ATTACK_TACTIC_MODS[atkTactic] ?? 1.0
-  const atkLight = 1 + (atkMod - 1) * 0.3         // Taktik etkisi %30'a düşürüldü
-  const defQual  = calcDefenseQualityMod(defTeam)
-  const defLight = 1 + (defQual - 1) * 0.35        // Kadro etkisi %35'e düşürüldü
-  return Math.min(0.95, base * atkLight * defLight)
+  const atkLight = 1 + (atkMod - 1) * 0.3
+  const defQual  = calcDefenseQualityMod(defTeam, gameMode)
+  const defLight = 1 + (defQual - 1) * 0.35
+  const penMod   = (gameMode === 'league' && player?.ratings) ? playerPenMod(player.ratings.pen) : 1.0
+  const penLight = 1 + (penMod - 1) * 0.5
+  return Math.min(0.95, base * atkLight * defLight * penLight)
 }
 
 /**
@@ -127,20 +176,49 @@ export function goalDigitsFromMult(mult) {
   return Array.from({ length: count }, (_, i) => i)
 }
 
-// ── Rastgele İsimler ─────────────────────────────────────────
-export const RANDOM_NAMES = [
-  'Altay',    'Djiku',      'Rodrigues', 'Tadic',     'Sanchez',
-  'Kahveci',  'Szymanski',  'Bazoer',    'Krunic',    'Valencia',
-  'Muslera',  'Nelsson',    'Bardakci',  'Torreira',  'Oliveira',
-  'Mertens',  'Zaniolo',    'Aktürkoğlu','Seferovic', 'Yılmaz',
-  'Livakovic','Osayi',      'Zajc',      'Ozan',      'King',
-  'Uzun',     'Güler',      'İrfan Can', 'Dzeko',     'İcardi',
-  'Crespo',   'Hakim',      'Kenan',     'Batshuayi', 'Angelino',
-  'Samet',    'Demirel',    'Babel',     'Slimani',   'Ferdi',
+// ── Rastgele İsimler (Ad + Soyad Kombinasyonları) ────────────
+const FIRST_NAMES = [
+  'Cristiano', 'Kylian',   'Erling',    'Lamine',    'Vinicius',
+  'Romelu',    'Edin',     'Mauro',     'Kenan',     'Arda',
+  'Sofyan',    'Nicolas',  'Emiliano',  'Giorgi',    'Ferdi',
+  'Altay',     'Marcos',   'Victor',    'Angelino',  'Rodrigo',
+  'Samet',     'Burak',    'Kaan',      'Domagoj',   'Lucas',
+  'Pedro',     'Berat',    'Umut',      'Haris',     'Sinan',
+  'Ozan',      'Ugurcan',  'Kerem',     'Cengiz',    'Baris',
+  'Nacer',     'Yusuf',    'Michy',     'King',      'Luka',
+  'Ilkay',     'Hakim',    'Riyad',     'Achraf',    'Bernardo',
+  'Ruben',     'Bruno',    'Fabinho',   'Adama',     'Serge',
+  'Thomas',    'Dries',    'Lorenzo',   'Alexis',    'Ivan',
+  'Granit',    'Denis',    'Nabil',     'Seko',      'Wilfried',
+]
+
+const LAST_NAMES = [
+  'Rodrigues', 'Haaland',   'Yamal',     'Junior',   'Lukaku',
+  'Dzeko',     'Icardi',    'Tadic',     'Turan',    'Amrabat',
+  'Muslera',   'Szymanski', 'Fernandez', 'Djiku',    'Nelsson',
+  'Torreira',  'Valeri',    'Kahveci',   'Yilmaz',   'Bazoer',
+  'Livakovic', 'Guler',     'Seferovic', 'Slimani',  'Dabbur',
+  'Ziyech',    'Thauvin',   'Bardakci',  'Sanchez',  'Valencia',
+  'Demirel',   'Oliveira',  'Mertens',   'Zaniolo',  'Batshuayi',
+  'Akturkoglu','Gundogan',  'Mahrez',    'Hakimi',   'Silva',
+  'Dias',      'Fernandes', 'Neves',     'Cancelo',  'Traore',
+  'Gnabry',    'Muller',    'Insigne',   'Sanches',  'Rakitic',
+  'Xhaka',     'Zakaria',   'Sommer',    'Fekir',    'Trezeguet',
+  'Fofana',    'Zaha',      'Diallo',    'Kouassi',  'Camara',
 ]
 
 export function randomNames() {
-  return [...RANDOM_NAMES].sort(() => Math.random() - 0.5)
+  const shuffledFirst = [...FIRST_NAMES].sort(() => Math.random() - 0.5)
+  const shuffledLast  = [...LAST_NAMES].sort(() => Math.random() - 0.5)
+  const names = []
+  const count = Math.max(shuffledFirst.length, shuffledLast.length)
+  for (let i = 0; i < count; i++) {
+    const first = shuffledFirst[i % shuffledFirst.length]
+    const last  = shuffledLast[i % shuffledLast.length]
+    const combo = `${first} ${last}`
+    if (!names.includes(combo)) names.push(combo)
+  }
+  return names
 }
 
 // ── YORUMCU SİSTEMİ ──────────────────────────────────────────
@@ -266,6 +344,58 @@ export const COMMENTARY = {
     'Hava topu mücadelesinde dirsek geldi, hakem oyunu durdurdu.',
     'Avantaja bırakmıştı ama pozisyon kaybolunca düdüğünü çaldı.',
     'Orta sahada kıran kırana bir ikili mücadele, faul!',
+  ],
+  action_penalty: [
+    'Hakem beyaz noktayı gösterdi! Penaltı!',
+    'İtirazlar fayda etmedi, hakem penaltı kararında ısrar ediyor!',
+    'Ceza sahasında net faul! Penaltı noktasına top konuluyor!',
+    'Müthiş karar! Hakem tereddütsüz beyaz noktayı işaret etti!',
+    'Tartışmalı ama net! Bu penaltı, hakem kesin emin.',
+    'Kaleci-oyuncu 1\'e 1! Penaltı düdüğü çaldı, saha fırladı!',
+    'VAR onayladı, penaltı kesinleşti! Kritik bir an!',
+    'Bu penaltıyı görmemek imkânsız! Hakem doğru karar verdi!',
+    'Atış noktasına top konuluyor, tribünler nefesini tutuyor!',
+    'Penaltı! Maçın en kritik anı olabilir bu!',
+  ],
+  action_freekick_near: [
+    'Çok tehlikeli bir noktadan serbest vuruş! Buradan gol olur!',
+    'Ceza sahasına yakın, tehlikeli bir yerden duran top!',
+    'Barajın tam gerisinden serbest vuruş! Kaleci tetikte!',
+    'İşte tam isabet yeri! Burayı boşa harcamazlar!',
+    'Yakın mesafeden frikik, defans panikte bariyer kuruyor!',
+    'Bu pozisyondan en az 3\'te 2 oranında gol olur! Heyecan dorukta!',
+    'Ceza sahası sınırından tehlikeli duran top şansı!',
+    'Bariyer hazırlanıyor, kaleci sağa sola koordinat veriyor!',
+  ],
+  action_freekick_far: [
+    'Uzak mesafeden serbest vuruş kullanılacak!',
+    'Standart mesafeden duran top şansı, ama zor bir açı.',
+    'Uzaktan topla buluşacaklar, iyi bir teknikle gol çıkabilir!',
+    'Bu mesafeden nadiren gol olur ama imkânsız değil!',
+    'Bariyer yerini aldı, kaleci pozisyon ayarlıyor.',
+    'Serbest vuruş için atışa hazırlanıyorlar, stadyum sessiz.',
+    'Uzaktan topu çerçeveleyebilirler, bekleyip göreceğiz!',
+    'Uzak frikik, kolay değil ama fırsat her zaman fırsattır!',
+  ],
+  action_freekick: [
+    'Serbest vuruş kazandılar! Duran top şansı geldi!',
+    'Hakem düdüğünü çaldı, serbest vuruş kullanılacak!',
+    'Önemli bir duran top şansı, fırsat değerlendirilmeli!',
+    'Frikik pozisyonu iyi, defans mevzi kurmaya çalışıyor!',
+    'Serbest vuruş için hazırlanıyorlar, bariyer geride değil!',
+    'Bu vuruşu kim kullanacak? Tüm gözler o oyuncuda!',
+    'Kritik bir serbest vuruş, stadyum gergin bekleyiş içinde!',
+    'Vuruş için hazır pozisyon, kaleci çizgide hazır!',
+  ],
+  action_corner: [
+    'Korner! Top köşe bayrağına yönleniyor!',
+    'Kaleci kornere çıkardı! Fırsat buradan devam edecek.',
+    'Köşe vuruşu kullanılacak! Ceza sahasında hava topu mücadelesi bekleniyor!',
+    'Korner, tribünler coştu! Buradan gol gelebilir!',
+    'Top kornere çıktı. Orta sahada yerli yerinde hazırlanıyorlar.',
+    'Köşe bayrağına koşuyor! Standartta ne çıkar göreceğiz.',
+    'Korner atışı için pozisyon alıyorlar, defans mevzilenmeye çalışıyor!',
+    'Beşinci korner bu maçta! Baskı sürüyor, köşeyi değerlendirmeli!',
   ],
   offside: [
     'Yardımcı hakemin bayrağı havada! Enfes bir ofsayt taktiği!',

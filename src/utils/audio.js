@@ -31,17 +31,22 @@ export const sounds = {
 // ── SPİKER SİSTEMİ ───────────────────────────────────────────
 
 const COMMENTARY_COUNTS = {
-  goal_direct:   12,
-  goal_penalty:  10,
-  goal_freekick: 10,
-  goal_corner:   10,
-  miss_penalty:  10,
-  miss_freekick: 10,
-  miss_corner:   10,
-  card_yellow:   10,
-  card_red:      10,
-  foul:          10,
-  offside:       10,
+  goal_direct:         12,
+  goal_penalty:        10,
+  goal_freekick:       10,
+  goal_corner:         10,
+  miss_penalty:        10,
+  miss_freekick:       10,
+  miss_corner:         10,
+  card_yellow:         10,
+  card_red:            10,
+  foul:                10,
+  offside:             10,
+  action_penalty:      10,
+  action_freekick_near: 8,
+  action_freekick_far:  8,
+  action_freekick:      8,
+  action_corner:        8,
 }
 
 // Her kategori için son çalınan indeksleri takip et (tekrar önleme)

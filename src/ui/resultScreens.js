@@ -111,6 +111,18 @@ export function buildFulltimeScreen() {
       }).join('')
     }
   }
+
+  // Lig modunda "YENİ MAÇ" butonunu "LİG MERKEZİNE DÖN" ile değiştir
+  const newMatchBtn = document.querySelector('#screen-fulltime .result-btn-row .btn-cta')
+  if (newMatchBtn) {
+    if (state.gameMode === 'league') {
+      newMatchBtn.textContent = '🏟️ LİG MERKEZİNE DÖN'
+      newMatchBtn.onclick = () => window.returnToLeagueHub && window.returnToLeagueHub()
+    } else {
+      newMatchBtn.textContent = '🔄 YENİ MAÇ'
+      newMatchBtn.onclick = () => window.newMatch && window.newMatch()
+    }
+  }
 }
 
 function _row(v0, v1, label) {

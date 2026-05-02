@@ -75,6 +75,7 @@ export function randomFill(teamIdx) {
 // ── Maç Ekranı: Oyuncu Durum Kartları ───────────────────────
 export function renderPlayersStatus() {
   const state = getState()
+  const isLeague = state.gameMode === 'league'
   ;[0, 1].forEach(teamIdx => {
     const container = document.getElementById(`players-status-${teamIdx}`)
     if (!container) return
@@ -87,7 +88,20 @@ export function renderPlayersStatus() {
       else if (player.yellowCards >= 1) cls += ' yellow-card'
       div.className = cls
       const posIcon = { K:'🧤', D:'🛡️', OS:'⚙️', F:'🔥' }[player.pos] || '⚽'
-      div.innerHTML = `<span class="pnum">${digit}</span><span class="ppos">${posIcon}</span><span class="pname">${player.name}</span>`
+
+      // Lig modunda 5 stat rozeti göster
+      let statBadges = ''
+      if (isLeague && player.ratings) {
+        const r = player.ratings
+        // FK ve PEN rozetleri — 75+ ise renkli göster
+        const fkBadge  = r.fk  >= 75 ? `<span class="stat-badge fk-badge" title="Frikik">🌀${r.fk}</span>`  : `<span class="stat-badge" title="Frikik">FK${r.fk}</span>`
+        const penBadge = r.pen >= 75 ? `<span class="stat-badge pen-badge" title="Penaltı">🎯${r.pen}</span>` : `<span class="stat-badge" title="Penaltı">PN${r.pen}</span>`
+        const atkBadge = `<span class="stat-badge atk-badge" title="Atak">⚔️${r.atk}</span>`
+        const defBadge = `<span class="stat-badge def-badge" title="Defans">🛡${r.def}</span>`
+        statBadges = `<span class="player-stats">${atkBadge}${defBadge}${fkBadge}${penBadge}</span>`
+      }
+
+      div.innerHTML = `<span class="pnum">${digit}</span><span class="ppos">${posIcon}</span><span class="pname">${player.name}</span>${statBadges}`
       container.appendChild(div)
     })
   })

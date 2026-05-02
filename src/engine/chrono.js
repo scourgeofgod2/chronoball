@@ -53,8 +53,8 @@ export function calcMinute(phase) {
   const totalCs  = Math.floor(elapsed / 10)
   const dispSecs = Math.floor(totalCs / 100) % 100
   if (phase === 'second-half')  return Math.min(45 + dispSecs + 1, 90)
-  if (phase === 'extra-time-1') return Math.min(90 + dispSecs + 1, 97)
-  if (phase === 'extra-time-2') return Math.min(97 + dispSecs + 1, 105)
+  if (phase === 'extra-time-1') return Math.min(90 + dispSecs + 1, 105)
+  if (phase === 'extra-time-2') return Math.min(105 + dispSecs + 1, 120)
   return Math.min(dispSecs + 1, 45)
 }
 
